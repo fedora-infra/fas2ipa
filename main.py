@@ -47,16 +47,22 @@ users = fas.send_request(
 
 for person in users['people']:
     print(person['username'], end='    ')
-    name_split = person['human_name'].split(' ')
-    first_name = name_split[0]
-    last_name = name_split[1] if len(name_split) > 1 else ''
+    if person['human_name']:
+        name = person['human_name'].strip()
+        name_split = person['human_name'].split(' ', 1)
+        first_name = name_split[0]
+        last_name = name_split[1] if len(name_split) > 1 else '*'
+    else:
+        name = '*'
+        first_name = '*'
+        last_name = '*'
     try:
         try:
             ipa.user_add(
                 person['username'],
                 first_name,
                 last_name,
-                person['human_name'],
+                name,
                 home_directory='/home/fedora/%s' % person['username'],
                 disabled=person['status'] != 'active',
                 # If they haven't synced yet, they must reset their password:
