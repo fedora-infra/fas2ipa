@@ -4,6 +4,7 @@ from fedora.client.fas2 import AccountSystem
 from getpass import getpass
 import python_freeipa
 from python_freeipa import Client
+import random
 
 try:
     from settings import *
@@ -16,8 +17,11 @@ fas = AccountSystem(
     password=fas_pw,
 )
 
-ipa = Client(host=ipa_instance, verify_ssl=ipa_ssl)
-ipa.login(ipa_user, ipa_pw)
+instances = []
+for instance in ipa_instances:
+    ipa = Client(host=instance, verify_ssl=ipa_ssl)
+    ipa.login(ipa_user, ipa_pw)
+    instances.append(ipa)
 
 if not skip_groups:
     # Start by creating groups
@@ -46,6 +50,7 @@ users = fas.send_request(
 )
 
 for person in users['people']:
+    ipa = random.choice(instances)
     print(person['username'], end='    ')
     if person['human_name']:
         name = person['human_name'].strip()
@@ -72,6 +77,7 @@ for person in users['people']:
                 fastimezone=person['timezone'],
                 fasgpgkeyid=[person['gpg_keyid']],
             )
+            print('OK')
         except python_freeipa.exceptions.FreeIPAError as e:
             if e.message == 'user with name "%s" already exists' % person['username']:
                 # Update them instead
@@ -116,13 +122,10 @@ for person in users['people']:
                     except Exception as e:
                         print('FAIL')
                         print(e)
+                        raise e
             except Exception as e:
                 print('FAIL')
                 print(e)
-    except Exception as e:
-        print('FAIL')
-        print(e)
-                        raise e
                 raise e
     except python_freeipa.exceptions.Unauthorized as e:
         ipa.login(ipa_user, ipa_pw)
