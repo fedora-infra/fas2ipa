@@ -74,10 +74,24 @@ for person in users['people']:
             )
         except python_freeipa.exceptions.FreeIPAError as e:
             if e.message == 'user with name "%s" already exists' % person['username']:
-                pass
+                # Update them instead
+                ipa.user_mod(
+                    person['username'],
+                    first_name=first_name,
+                    last_name=last_name,
+                    full_name=name,
+                    home_directory='/home/fedora/%s' % person['username'],
+                    disabled=person['status'] != 'active',
+                    # If they haven't synced yet, they must reset their password:
+                    random_pass=True,
+                    fasircnick=person['ircnick'],
+                    faslocale=person['locale'],
+                    fastimezone=person['timezone'],
+                    fasgpgkeyid=[person['gpg_keyid']],
+                )
+                print('UPDATED')
             else:
                 raise e
-        print('OK')
 
         for groupname,group in person['group_roles'].items():
             print(person['username'] + ':' + groupname, end='    ')
@@ -105,6 +119,14 @@ for person in users['people']:
             except Exception as e:
                 print('FAIL')
                 print(e)
+    except Exception as e:
+        print('FAIL')
+        print(e)
+                        raise e
+                raise e
+    except python_freeipa.exceptions.Unauthorized as e:
+        ipa.login(ipa_user, ipa_pw)
+        continue
     except Exception as e:
         print('FAIL')
         print(e)
