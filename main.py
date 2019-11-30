@@ -49,7 +49,18 @@ users = fas.send_request(
     timeout=240
 )
 
+def re_auth(instances):
+    print('Re-authenticating')
+    for ipa in instances:
+        ipa.logout()
+        ipa.login(ipa_user, ipa_pw)
+
+counter = 0
+
 for person in users['people']:
+    counter += 1
+    if counter % 20 == 0:
+        re_auth(instances)
     ipa = random.choice(instances)
     print(person['username'], end='    ')
     if person['human_name']:
