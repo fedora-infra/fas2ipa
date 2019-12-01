@@ -73,8 +73,8 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
     if person['human_name']:
         name = person['human_name'].strip()
         name_split = name.split(' ', 1)
-        first_name = name_split[0]
-        last_name = name_split[1] if len(name_split) > 1 else '*'
+        first_name = name_split[0].strip()
+        last_name = name_split[1].strip() if len(name_split.strip()) > 1 else '*'
     else:
         name = '*'
         first_name = '*'
