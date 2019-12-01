@@ -95,7 +95,7 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
                 fastimezone=person['timezone'],
                 fasgpgkeyid=[person['gpg_keyid'][:16] if person['gpg_keyid'] else None],
             )
-            print('OK')
+            print('ADDED')
         except python_freeipa.exceptions.FreeIPAError as e:
             if e.message == 'user with name "%s" already exists' % person['username']:
                 # Update them instead
@@ -136,25 +136,38 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
         print('FAIL')
         print(e)
 
-for group, members in progressbar.progressbar(groups_to_member_usernames.items(), redirect_stdout=True):
-    for chunk in chunks(members, group_chunks):
-        try:
-            instances[0].group_add_member(group, chunk)
-            print('SUCCESS: Added %s as member to %s' % (chunk, group))
-        except python_freeipa.exceptions.ValidationError as e:
-            for msg in e.message['member']['user']:
-                print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
-            continue
 
-for group, sponsors in progressbar.progressbar(groups_to_sponsor_usernames.items(), redirect_stdout=True):
-    for chunk in chunks(members, group_chunks):
-        try:
-            instances[0]._request(
-                'group_add_member_manager',
-                group,
-                { 'users': chunk })
-            print('SUCCESS: Added %s as sponsor to %s' % (chunk, group))
-        except python_freeipa.exceptions.ValidationError as e:
-            for msg in e.message['member']['user']:
-                print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
-            continue
+for group, members in groups_to_member_usernames.items():
+    with progressbar.ProgressBar(max_value=len(members), redirect_stdout=True) as bar:
+        bar.max_value = len(members)
+        counter = 0
+        for chunk in chunks(members, group_chunks):
+            counter += 1
+            try:
+                instances[0].group_add_member(group, chunk)
+                print('SUCCESS: Added %s as member to %s' % (chunk, group))
+            except python_freeipa.exceptions.ValidationError as e:
+                for msg in e.message['member']['user']:
+                    print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
+                continue
+            finally:
+                bar.update(counter * len(chunk))
+
+
+for group, sponsors in groups_to_sponsor_usernames.items():
+    with progressbar.ProgressBar(max_value=len(sponsors), redirect_stdout=True) as bar:
+        counter = 0
+        for chunk in chunks(members, group_chunks):
+            counter += 1
+            try:
+                instances[0]._request(
+                    'group_add_member_manager',
+                    group,
+                    { 'user': chunk })
+                print('SUCCESS: Added %s as sponsor to %s' % (chunk, group))
+            except python_freeipa.exceptions.ValidationError as e:
+                for msg in e.message['member']['user']:
+                    print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
+                continue
+            finally:
+                bar.update(counter * len(chunk))
