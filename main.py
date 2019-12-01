@@ -5,6 +5,7 @@ from getpass import getpass
 import python_freeipa
 from python_freeipa import Client
 import random
+import progressbar
 
 try:
     from settings import *
@@ -63,7 +64,7 @@ groups_to_sponsor_usernames = {}
 
 counter = 0
 
-for person in users['people']:
+for person in progressbar.progressbar(users['people'], redirect_stdout=True):
     counter += 1
     if counter % reauth_every == 0:
         re_auth(instances)
@@ -135,7 +136,7 @@ for person in users['people']:
         print('FAIL')
         print(e)
 
-for group, members in groups_to_member_usernames.items():
+for group, members in progressbar.progressbar(groups_to_member_usernames.items(), redirect_stdout=True):
     for chunk in chunks(members, group_chunks):
         try:
             instances[0].group_add_member(group, chunk)
@@ -145,7 +146,7 @@ for group, members in groups_to_member_usernames.items():
                 print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
             continue
 
-for group, sponsors in groups_to_sponsors_usernames.items():
+for group, sponsors in progressbar.progressbar(groups_to_sponsor_usernames.items(), redirect_stdout=True):
     for chunk in chunks(members, group_chunks):
         try:
             instances[0]._request(
