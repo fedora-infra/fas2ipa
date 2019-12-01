@@ -74,7 +74,7 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
         name = person['human_name'].strip()
         name_split = name.split(' ', 1)
         first_name = name_split[0].strip()
-        last_name = name_split[1].strip() if len(name_split.strip()) > 1 else '*'
+        last_name = name_split[1].strip() if len(name_split) > 1 and len(name_split[1].strip()) > 1 else '*'
     else:
         name = '*'
         first_name = '*'
@@ -90,10 +90,10 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
                 disabled=person['status'] != 'active',
                 # If they haven't synced yet, they must reset their password:
                 random_pass=True,
-                fasircnick=person['ircnick'],
-                faslocale=person['locale'],
-                fastimezone=person['timezone'],
-                fasgpgkeyid=[person['gpg_keyid'][:16] if person['gpg_keyid'] else None],
+                fasircnick=person['ircnick'].strip() if person['ircnick'] else None,
+                faslocale=person['locale'].strip() if person['locale'] else None,
+                fastimezone=person['timezone'].strip() if person['timezone'] else None,
+                fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
             )
             print('ADDED')
         except python_freeipa.exceptions.FreeIPAError as e:
@@ -108,10 +108,10 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
                     disabled=person['status'] != 'active',
                     # If they haven't synced yet, they must reset their password:
                     random_pass=True,
-                    fasircnick=person['ircnick'],
-                    faslocale=person['locale'],
-                    fastimezone=person['timezone'],
-                    fasgpgkeyid=[person['gpg_keyid'][:16] if person['gpg_keyid'] else None],
+                    fasircnick=person['ircnick'].strip() if person['ircnick'] else None,
+                    faslocale=person['locale'].strip() if person['locale'] else None,
+                    fastimezone=person['timezone'].strip() if person['timezone'] else None,
+                    fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
                 )
                 print('UPDATED')
             else:
@@ -144,7 +144,7 @@ for group, members in groups_to_member_usernames.items():
         for chunk in chunks(members, group_chunks):
             counter += 1
             try:
-                instances[0].group_add_member(group, chunk)
+                instances[0].group_add_member(group, chunk, no_members=True)
                 print('SUCCESS: Added %s as member to %s' % (chunk, group))
             except python_freeipa.exceptions.ValidationError as e:
                 for msg in e.message['member']['user']:
