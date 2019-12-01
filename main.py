@@ -41,6 +41,9 @@ if not skip_groups:
             print('FAIL')
             print(e)
 
+def chunks(data, n):
+    return [data[x:x+n] for x in range(0, len(data), n)]
+
 # Now move on to users
 users = fas.send_request(
     '/user/list',
@@ -55,11 +58,14 @@ def re_auth(instances):
         ipa.logout()
         ipa.login(ipa_user, ipa_pw)
 
+groups_to_member_usernames = {}
+groups_to_sponsor_usernames = {}
+
 counter = 0
 
 for person in users['people']:
     counter += 1
-    if counter % 20 == 0:
+    if counter % reauth_every == 0:
         re_auth(instances)
     ipa = random.choice(instances)
     print(person['username'], end='    ')
@@ -86,7 +92,7 @@ for person in users['people']:
                 fasircnick=person['ircnick'],
                 faslocale=person['locale'],
                 fastimezone=person['timezone'],
-                fasgpgkeyid=[person['gpg_keyid']],
+                fasgpgkeyid=[person['gpg_keyid'][:16] if person['gpg_keyid'] else None],
             )
             print('OK')
         except python_freeipa.exceptions.FreeIPAError as e:
@@ -104,43 +110,50 @@ for person in users['people']:
                     fasircnick=person['ircnick'],
                     faslocale=person['locale'],
                     fastimezone=person['timezone'],
-                    fasgpgkeyid=[person['gpg_keyid']],
+                    fasgpgkeyid=[person['gpg_keyid'][:16] if person['gpg_keyid'] else None],
                 )
                 print('UPDATED')
             else:
                 raise e
 
-        for groupname,group in person['group_roles'].items():
-            print(person['username'] + ':' + groupname, end='    ')
-            try:
-                try:
-                    ipa.group_add_member(groupname, users=person['username'])
-                    print('OK')
-                except python_freeipa.exceptions.ValidationError as e:
-                    if e.message['member']['user'][0][1] == 'This entry is already a member':
-                        print('OK')
-                        pass
-                    else:
-                        raise e
-                if group['role_type'] in ['administrator', 'sponsor']:
-                    print(person['username'] + ':' + groupname + ' sponsor status', end='    ')
-                    try:
-                        ipa._request(
-                            'group_add_member_manager',
-                            groupname,
-                            { 'user': [person['username']] })
-                        print('OK')
-                    except Exception as e:
-                        print('FAIL')
-                        print(e)
-                        raise e
-            except Exception as e:
-                print('FAIL')
-                print(e)
-                raise e
+        for groupname, group in person['group_roles'].items():
+            if groupname in groups_to_member_usernames:
+                groups_to_member_usernames[groupname].append(person['username'])
+            else:
+                groups_to_member_usernames[groupname] = [person['username']]
+
+            if group['role_type'] in ['administrator', 'sponsor']:
+                if groupname in groups_to_sponsor_usernames:
+                    groups_to_sponsor_usernames[groupname].append(person['username'])
+                else:
+                    groups_to_sponsor_usernames[groupname] = [person['username']]
+
     except python_freeipa.exceptions.Unauthorized as e:
         ipa.login(ipa_user, ipa_pw)
         continue
     except Exception as e:
         print('FAIL')
         print(e)
+
+for group, members in groups_to_member_usernames.items():
+    for chunk in chunks(members, group_chunks):
+        try:
+            instances[0].group_add_member(group, chunk)
+            print('SUCCESS: Added %s as member to %s' % (chunk, group))
+        except python_freeipa.exceptions.ValidationError as e:
+            for msg in e.message['member']['user']:
+                print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
+            continue
+
+for group, sponsors in groups_to_sponsors_usernames.items():
+    for chunk in chunks(members, group_chunks):
+        try:
+            instances[0]._request(
+                'group_add_member_manager',
+                group,
+                { 'users': chunk })
+            print('SUCCESS: Added %s as sponsor to %s' % (chunk, group))
+        except python_freeipa.exceptions.ValidationError as e:
+            for msg in e.message['member']['user']:
+                print('NOTICE: Failed to add %s to %s: %s' % (msg[0], group, msg[1]))
+            continue

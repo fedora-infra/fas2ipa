@@ -15,3 +15,11 @@ group_search = 'sysadmin-*'
 user_search = 'codeblock'
 
 skip_groups = False
+
+# After too long a session can expire.
+# So we just trigger a re-atuh, even reauth_every account imports.
+reauth_every = 150
+
+# We batch our group membership queries.
+# How many members maximum should be in each request?
+group_chunks = 30
