@@ -23,3 +23,5 @@ reauth_every = 150
 # We batch our group membership queries.
 # How many members maximum should be in each request?
 group_chunks = 30
+
+ignore_groups = ['cla_fpca', 'cla_done', 'cla_fedora']

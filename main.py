@@ -33,7 +33,9 @@ if not skip_groups:
         timeout=240
     )
 
-    for group in fas_groups['groups']:
+    fas_groups = [g for g in fas_groups['groups'] if g['name'] not in ignore_groups]
+
+    for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
         print(group['name'], end='    ')
         try:
             ipa.group_add(group['name'], description=group['display_name'].strip())
@@ -94,6 +96,7 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
                 faslocale=person['locale'].strip() if person['locale'] else None,
                 fastimezone=person['timezone'].strip() if person['timezone'] else None,
                 fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
+                fasclafpca=person['group_roles'].get('cla_fpca', {}).get('role_type') == 'user',
             )
             print('ADDED')
         except python_freeipa.exceptions.FreeIPAError as e:
@@ -112,6 +115,7 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
                     faslocale=person['locale'].strip() if person['locale'] else None,
                     fastimezone=person['timezone'].strip() if person['timezone'] else None,
                     fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
+                    fasclafpca=person['group_roles'].get('cla_fpca', {}).get('role_type') == 'user',
                 )
                 print('UPDATED')
             else:
@@ -138,6 +142,8 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
 
 
 for group, members in groups_to_member_usernames.items():
+    if group in ignore_groups:
+        continue
     with progressbar.ProgressBar(max_value=len(members), redirect_stdout=True) as bar:
         bar.max_value = len(members)
         counter = 0
@@ -155,6 +161,8 @@ for group, members in groups_to_member_usernames.items():
 
 
 for group, sponsors in groups_to_sponsor_usernames.items():
+    if group in ignore_groups:
+        continue
     with progressbar.ProgressBar(max_value=len(sponsors), redirect_stdout=True) as bar:
         counter = 0
         for chunk in chunks(members, group_chunks):
