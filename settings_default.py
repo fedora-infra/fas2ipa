@@ -14,14 +14,19 @@ group_search = 'sysadmin-*'
 # * for all
 user_search = 'codeblock'
 
-skip_groups = False
+# Should we create all the groups (if they haven't been created already)?
+skip_group_creation = False
+
+# Should we only map users/sponsors to groups, and ignore updating user entities?
+only_map_groups = False
 
 # After too long a session can expire.
-# So we just trigger a re-atuh, even reauth_every account imports.
+# So we just trigger a re-atuh, every reauth_every account imports.
 reauth_every = 150
 
 # We batch our group membership queries.
 # How many members maximum should be in each request?
 group_chunks = 30
 
+# Which groups should we ignore when creating and mapping?
 ignore_groups = ['cla_fpca', 'cla_done', 'cla_fedora']

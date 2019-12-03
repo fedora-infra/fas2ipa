@@ -24,7 +24,7 @@ for instance in ipa_instances:
     ipa.login(ipa_user, ipa_pw)
     instances.append(ipa)
 
-if not skip_groups:
+if not skip_group_creation:
     # Start by creating groups
     fas_groups = fas.send_request(
         '/group/list',
@@ -82,31 +82,13 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
         first_name = '*'
         last_name = '*'
     try:
-        try:
-            ipa.user_add(
-                person['username'],
-                first_name,
-                last_name,
-                name,
-                home_directory='/home/fedora/%s' % person['username'],
-                disabled=person['status'] != 'active',
-                # If they haven't synced yet, they must reset their password:
-                random_pass=True,
-                fasircnick=person['ircnick'].strip() if person['ircnick'] else None,
-                faslocale=person['locale'].strip() if person['locale'] else None,
-                fastimezone=person['timezone'].strip() if person['timezone'] else None,
-                fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
-                fasclafpca=person['group_roles'].get('cla_fpca', {}).get('role_type') == 'user',
-            )
-            print('ADDED')
-        except python_freeipa.exceptions.FreeIPAError as e:
-            if e.message == 'user with name "%s" already exists' % person['username']:
-                # Update them instead
-                ipa.user_mod(
+        if not only_map_groups:
+            try:
+                ipa.user_add(
                     person['username'],
-                    first_name=first_name,
-                    last_name=last_name,
-                    full_name=name,
+                    first_name,
+                    last_name,
+                    name,
                     home_directory='/home/fedora/%s' % person['username'],
                     disabled=person['status'] != 'active',
                     # If they haven't synced yet, they must reset their password:
@@ -117,9 +99,28 @@ for person in progressbar.progressbar(users['people'], redirect_stdout=True):
                     fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
                     fasclafpca=person['group_roles'].get('cla_fpca', {}).get('role_type') == 'user',
                 )
-                print('UPDATED')
-            else:
-                raise e
+                print('ADDED')
+            except python_freeipa.exceptions.FreeIPAError as e:
+                if e.message == 'user with name "%s" already exists' % person['username']:
+                    # Update them instead
+                    ipa.user_mod(
+                        person['username'],
+                        first_name=first_name,
+                        last_name=last_name,
+                        full_name=name,
+                        home_directory='/home/fedora/%s' % person['username'],
+                        disabled=person['status'] != 'active',
+                        # If they haven't synced yet, they must reset their password:
+                        random_pass=True,
+                        fasircnick=person['ircnick'].strip() if person['ircnick'] else None,
+                        faslocale=person['locale'].strip() if person['locale'] else None,
+                        fastimezone=person['timezone'].strip() if person['timezone'] else None,
+                        fasgpgkeyid=[person['gpg_keyid'][:16].strip() if person['gpg_keyid'] else None],
+                        fasclafpca=person['group_roles'].get('cla_fpca', {}).get('role_type') == 'user',
+                    )
+                    print('UPDATED')
+                else:
+                    raise e
 
         for groupname, group in person['group_roles'].items():
             if groupname in groups_to_member_usernames:
@@ -165,7 +166,7 @@ for group, sponsors in groups_to_sponsor_usernames.items():
         continue
     with progressbar.ProgressBar(max_value=len(sponsors), redirect_stdout=True) as bar:
         counter = 0
-        for chunk in chunks(members, group_chunks):
+        for chunk in chunks(sponsors, group_chunks):
             counter += 1
             try:
                 instances[0]._request(
