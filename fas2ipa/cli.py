@@ -94,12 +94,14 @@ def cli(skip_groups, only_members):
         fas_groups = [
             g for g in fas_groups["groups"] if g["name"] not in config["ignore_groups"]
         ]
+        fas_groups.sort(key=lambda g: g["name"])
         click.echo(f"Got {len(fas_groups)} groups!")
+        max_length = max([len(g["name"]) for g in fas_groups])
 
         for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
             groups_counter += 1
             name = group["name"].lower()
-            print(name, end="    ")
+            click.echo(name.ljust(max_length + 2), nl=False)
 
             # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
             # if we have an irc channel defined. try to generate the irc:// uri
@@ -208,13 +210,15 @@ def cli(skip_groups, only_members):
         )
         people_count = len(users["people"])
         print(f"{people_count} found")
+        max_length = max([len(u["username"]) for u in users["people"]])
+        users["people"].sort(key=lambda u: u["username"])
 
         for person in progressbar.progressbar(users["people"], redirect_stdout=True):
             user_counter += 1
             if user_counter % config["reauth_every"] == 0:
                 re_auth(instances)
             ipa = random.choice(instances)
-            print(person["username"], end="    ")
+            click.echo(person["username"].ljust(max_length + 2), nl=False)
             if person["human_name"]:
                 name = person["human_name"].strip()
                 name_split = name.split(" ")
