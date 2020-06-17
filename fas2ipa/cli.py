@@ -154,7 +154,7 @@ def cli(skip_groups, only_members):
                     try:
                         ipa.group_mod(name, **group_args)
                     except python_freeipa.exceptions.FreeIPAError as e:
-                        if e.message != 'no modifications to be performed':
+                        if e.message != "no modifications to be performed":
                             raise
                     print_status("UPDATED", "success")
                     groups_edited += 1
@@ -283,7 +283,7 @@ def cli(skip_groups, only_members):
                                 person["username"]
                             ]
 
-            except python_freeipa.exceptions.Unauthorized as e:
+            except python_freeipa.exceptions.Unauthorized:
                 ipa.login(config["ipa"]["username"], config["ipa"]["password"])
                 continue
             except Exception as e:

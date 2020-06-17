@@ -1,12 +1,6 @@
 # * for all
 group_search = "*"
 
-# Should we create all the groups (if they haven't been created already)?
-skip_group_creation = false
-
-# Should we only map users/sponsors to groups, and ignore updating user entities?
-only_map_groups = false
-
 # After too long a session can expire.
 # So we just trigger a re-atuh, every reauth_every account imports.
 reauth_every = 150
