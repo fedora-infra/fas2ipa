@@ -216,7 +216,7 @@ def cli(skip_groups, only_members):
                         fasgpgkeyid=[person["gpg_keyid"][:16].strip()] if person["gpg_keyid"] else None,
                     )
                     try:
-                        ipa.user_add(person["username"], **user_args))
+                        ipa.user_add(person["username"], **user_args)
                         print("ADDED")
                         users_added += 1
                     except python_freeipa.exceptions.FreeIPAError as e:
@@ -225,7 +225,7 @@ def cli(skip_groups, only_members):
                             == 'user with name "%s" already exists' % person["username"]
                         ):
                             # Update them instead
-                            ipa.user_mod(person["username"], **user_args))
+                            ipa.user_mod(person["username"], **user_args)
                             print("UPDATED")
                             users_edited += 1
                         else:
