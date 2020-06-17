@@ -41,9 +41,40 @@ if not skip_group_creation:
 
     for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
         groups_counter += 1
+
+        # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
+        # if we have an irc channel defined. try to generate the irc:// uri
+        # there are a handful of groups that have an IRC server defined (freenode), but
+        # no channel, which is kind of useless, so we don't handle that case.
+        irc_channel = group.get("irc_channel")
+        irc_string = None
+        if irc_channel:
+            if irc_channel[0] == "#":
+                irc_channel = irc_channel[1:]
+            irc_network = group.get("irc_network").lower()
+            if "gimp" in irc_network:
+                irc_string = f'irc://irc.gimp.org/#{irc_channel}'
+            elif "oftc" in irc_network:
+                irc_string = f'irc://irc.oftc.net/#{irc_channel}'
+            else:
+                # the remainder of the entries here are either blank or
+                # freenode, so we freenode them all.
+                irc_string = f'irc://irc.freenode.net/#{irc_channel}'
+        
+        url = group.get("url")
+        if not url:
+            url = None
+        
+        mailing_list = group.get("mailing_list")
+        if not mailing_list:
+            mailing_list = None
+        elif "@" not in mailing_list:
+            mailing_list = f'{mailing_list}@lists.fedoraproject.org'
+
         print(group['name'], end='    ')
         try:
-            ipa.group_add(group['name'], description=group['display_name'].strip())
+            ipa.group_add(group['name'], description=group['display_name'].strip(),
+            fasgroup=True, fasurl=url, fasmailinglist=mailing_list, fasircchannel=irc_string)
             print('OK')
             groups_added += 1
         except Exception as e:
