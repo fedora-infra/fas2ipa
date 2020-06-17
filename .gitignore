@@ -1,4 +1,5 @@
 /config.toml
+/fixtures
 
 __pycache__/
 *.py[cod]

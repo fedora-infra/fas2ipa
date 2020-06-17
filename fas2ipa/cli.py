@@ -5,6 +5,7 @@ import click
 import progressbar
 import python_freeipa
 import toml
+import vcr
 from python_freeipa import ClientLegacy as Client
 from fedora.client.fas2 import AccountSystem
 
@@ -13,6 +14,29 @@ INPUT_IF_EMTPY = {
     "fas": ["username", "password"],
     "ipa": ["username", "password"],
 }
+
+
+class FASWrapper:
+    def __init__(self, config):
+        self.fas = AccountSystem(
+            "https://admin.fedoraproject.org/accounts",
+            username=config["fas"]["username"],
+            password=config["fas"]["password"],
+        )
+        self._replay = config["replay"]
+        self._recorder = vcr.VCR(
+            ignore_hosts=config["ipa"]["instances"],
+            record_mode="new_episodes",
+            match_on=["method", "path", "query", "body"],
+        )
+
+    def send_request(self, url, *args, **kwargs):
+        if not self._replay:
+            return self.fas.send_request(url, *args, **kwargs)
+
+        cassette_path = ["fixtures/fas-", url[1:].replace("/", "_"), ".yaml"]
+        with self._recorder.use_cassette("".join(cassette_path)):
+            return self.fas.send_request(url, *args, **kwargs)
 
 
 @click.command()
@@ -33,11 +57,7 @@ def cli(skip_groups, only_members):
                 f"Enter {key} for {section}", hide_input=is_password
             )
 
-    fas = AccountSystem(
-        "https://admin.fedoraproject.org/accounts",
-        username=config["fas"]["username"],
-        password=config["fas"]["password"],
-    )
+    fas = FASWrapper(config)
     click.echo("Logged into FAS")
 
     instances = []
