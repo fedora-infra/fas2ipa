@@ -6,6 +6,7 @@ import progressbar
 import python_freeipa
 import toml
 import vcr
+from colorama import Fore, Style
 from python_freeipa import ClientLegacy as Client
 from fedora.client.fas2 import AccountSystem
 
@@ -37,6 +38,15 @@ class FASWrapper:
         cassette_path = ["fixtures/fas-", url[1:].replace("/", "_"), ".yaml"]
         with self._recorder.use_cassette("".join(cassette_path)):
             return self.fas.send_request(url, *args, **kwargs)
+
+
+def print_status(text, category):
+    if category == "success":
+        text = Style.BRIGHT + Fore.GREEN + text
+    elif category == "failure":
+        text = Style.BRIGHT + Fore.RED + text
+    text = text + Style.RESET_ALL
+    print(text)
 
 
 @click.command()
@@ -135,7 +145,7 @@ def cli(skip_groups, only_members):
             )
             try:
                 ipa.group_add(name, **group_args)
-                print("OK")
+                print_status("ADDED", "success")
                 groups_added += 1
             except python_freeipa.exceptions.FreeIPAError as e:
                 if e.message == 'group with name "%s" already exists' % name:
@@ -144,14 +154,14 @@ def cli(skip_groups, only_members):
                     except python_freeipa.exceptions.FreeIPAError as e:
                         if e.message != 'no modifications to be performed':
                             raise
-                    print("UPDATED")
+                    print_status("UPDATED", "success")
                     groups_edited += 1
                 else:
-                    print("FAIL")
+                    print_status("FAIL", "failure")
                     print(e.message)
                     print(e)
             except Exception as e:
-                print("FAIL")
+                print_status("FAIL", "failure")
                 print(e)
 
     def chunks(data, n):
@@ -237,7 +247,7 @@ def cli(skip_groups, only_members):
                     )
                     try:
                         ipa.user_add(person["username"], **user_args)
-                        print("ADDED")
+                        print_status("ADDED", "success")
                         users_added += 1
                     except python_freeipa.exceptions.FreeIPAError as e:
                         if (
@@ -246,7 +256,7 @@ def cli(skip_groups, only_members):
                         ):
                             # Update them instead
                             ipa.user_mod(person["username"], **user_args)
-                            print("UPDATED")
+                            print_status("UPDATED", "success")
                             users_edited += 1
                         else:
                             raise e
@@ -271,7 +281,7 @@ def cli(skip_groups, only_members):
                 ipa.login(config["ipa"]["username"], config["ipa"]["password"])
                 continue
             except Exception as e:
-                print("FAIL")
+                print_status("FAIL", "failure")
                 print(e)
 
         group_member_counter = 0
@@ -287,13 +297,16 @@ def cli(skip_groups, only_members):
                     group_member_counter += 1
                     try:
                         instances[0].group_add_member(group, chunk, no_members=True)
-                        print("SUCCESS: Added %s as member to %s" % (chunk, group))
+                        print_status(
+                            f"Added members to {group}: {', '.join(chunk)}", "success"
+                        )
                     except python_freeipa.exceptions.ValidationError as e:
                         for msg in e.message["member"]["user"]:
-                            print(
-                                "NOTICE: Failed to add %s to %s: %s"
-                                % (msg[0], group, msg[1])
-                            )
+                            if msg[1] != "This entry is already a member":
+                                print_status(
+                                    f"Failed to add {msg[0]} to {group}: {msg[1]}",
+                                    "failure",
+                                )
                         continue
                     finally:
                         bar.update(group_member_counter * len(chunk))
@@ -312,13 +325,16 @@ def cli(skip_groups, only_members):
                         instances[0]._request(
                             "group_add_member_manager", group, {"user": chunk}
                         )
-                        print("SUCCESS: Added %s as sponsor to %s" % (chunk, group))
+                        print_status(
+                            f"Added sponsors to {group}: {', '.join(chunk)}", "success"
+                        )
                     except python_freeipa.exceptions.ValidationError as e:
                         for msg in e.message["member"]["user"]:
-                            print(
-                                "NOTICE: Failed to add %s to %s: %s"
-                                % (msg[0], group, msg[1])
-                            )
+                            if msg[1] != "This entry is already a member":
+                                print_status(
+                                    f"Failed to add {msg[0]} as sponsor of {group}: {msg[1]}",
+                                    "failure",
+                                )
                         continue
                     finally:
                         bar.update(group_sponsor_counter * len(chunk))
