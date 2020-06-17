@@ -1,0 +1,78 @@
+[tool.poetry]
+name = "fas2ipa"
+version = "0.0.1"
+description = "Migrate accounts from FAS to IPA"
+
+license = "MIT"
+
+authors = [
+  "Fedora Infrastructure <infrastructure@lists.fedoraproject.org>"
+]
+
+readme = 'README.md'  # Markdown files are supported
+
+repository = "https://github.com/fedora-infra/fas2ipa"
+homepage = "https://github.com/fedora-infra/fas2ipa"
+
+include = [
+  "tox.ini",
+  "config.toml.example",
+]
+
+keywords = ['security']
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+python-freeipa = "^1.0.4"
+click = "^7.1.2"
+toml = "^0.10.1"
+python-fedora = "^1.0.0"
+progressbar2 = "^3.51.3"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^3.7.9"
+bandit = "^1.6.2"
+liccheck = "^0.4.2"
+black = "^19.10b0"
+
+[tool.poetry.scripts]
+fas2ipa = 'fas2ipa.cli:cli'
+
+
+[tool.liccheck]
+authorized_licenses = [
+  "bsd",
+  "new bsd",
+  "simplified bsd",
+  "apache",
+  "apache 2.0",
+  "apache software",
+  "gnu lgpl",
+  "gpl v2",
+  "GNU General Public License v2 or later (GPLv2+)",
+  "gpl v3",
+  "lgpl with exceptions or zpl",
+  "isc",
+  "isc license (iscl)",
+  "mit",
+  "python software foundation",
+  "zpl 2.1",
+  "mpl-2.0",
+  "lgpl",
+  "wtfpl",
+  "GNU GPLv3+",
+  "GNU General Public License v3 (GPLv3)",
+  "Apache License, Version 2.0",
+]
+
+[build-system]
+requires = ["poetry>=1.0.0"]
+build-backend = "poetry.masonry.api"
