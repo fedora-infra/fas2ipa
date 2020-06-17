@@ -68,7 +68,8 @@ def cli(skip_groups, only_members):
 
         for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
             groups_counter += 1
-            print(group["name"], end="    ")
+            name = group["name"].lower()
+            print(name, end="    ")
 
             # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
             # if we have an irc channel defined. try to generate the irc:// uri
@@ -92,6 +93,8 @@ def cli(skip_groups, only_members):
             url = group.get("url")
             if not url:
                 url = None
+            else:
+                url = url.strip()
 
             mailing_list = group.get("mailing_list")
             if not mailing_list:
@@ -100,28 +103,27 @@ def cli(skip_groups, only_members):
                 if "@" not in mailing_list:
                     mailing_list = f"{mailing_list}@lists.fedoraproject.org"
                 mailing_list = mailing_list.strip()
+                mailing_list = mailing_list.rstrip(".")
+                mailing_list = mailing_list.lower()
 
+            group_args = dict(
+                description=group["display_name"].strip(),
+                fasgroup=True,
+                fasurl=url,
+                fasmailinglist=mailing_list,
+                fasircchannel=irc_string,
+            )
             try:
-                ipa.group_add(
-                    group["name"],
-                    description=group["display_name"].strip(),
-                    fasgroup=True,
-                    fasurl=url,
-                    fasmailinglist=mailing_list,
-                    fasircchannel=irc_string,
-                )
+                ipa.group_add(name, **group_args)
                 print("OK")
                 groups_added += 1
             except python_freeipa.exceptions.FreeIPAError as e:
-                if e.message == 'group with name "%s" already exists' % group["name"]:
-                    ipa.group_mod(
-                        group["name"],
-                        description=group["display_name"].strip(),
-                        fasgroup=True,
-                        fasurl=url,
-                        fasmailinglist=mailing_list,
-                        fasircchannel=irc_string,
-                    )
+                if e.message == 'group with name "%s" already exists' % name:
+                    try:
+                        ipa.group_mod(name, **group_args)
+                    except python_freeipa.exceptions.FreeIPAError as e:
+                        if e.message != 'no modifications to be performed':
+                            raise
                     print("UPDATED")
                     groups_edited += 1
                 else:
@@ -198,33 +200,23 @@ def cli(skip_groups, only_members):
                 last_name = "<lnu>"
             try:
                 if not only_members:
+                    user_args = dict(
+                        first_name=first_name,
+                        last_name=last_name,
+                        full_name=name,
+                        gecos=name,
+                        display_name=name,
+                        home_directory="/home/fedora/%s" % person["username"],
+                        disabled=person["status"] != "active",
+                        # If they haven't synced yet, they must reset their password:
+                        random_pass=True,
+                        fasircnick=person["ircnick"].strip() if person["ircnick"] else None,
+                        faslocale=person["locale"].strip() if person["locale"] else None,
+                        fastimezone=person["timezone"].strip() if person["timezone"] else None,
+                        fasgpgkeyid=[person["gpg_keyid"][:16].strip()] if person["gpg_keyid"] else None,
+                    )
                     try:
-                        ipa.user_add(
-                            person["username"],
-                            first_name=first_name,
-                            last_name=last_name,
-                            full_name=name,
-                            gecos=name,
-                            display_name=name,
-                            home_directory="/home/fedora/%s" % person["username"],
-                            disabled=person["status"] != "active",
-                            # If they haven't synced yet, they must reset their password:
-                            random_pass=True,
-                            fasircnick=person["ircnick"].strip()
-                            if person["ircnick"]
-                            else None,
-                            faslocale=person["locale"].strip()
-                            if person["locale"]
-                            else None,
-                            fastimezone=person["timezone"].strip()
-                            if person["timezone"]
-                            else None,
-                            fasgpgkeyid=[
-                                person["gpg_keyid"][:16].strip()
-                                if person["gpg_keyid"]
-                                else None
-                            ],
-                        )
+                        ipa.user_add(person["username"], **user_args))
                         print("ADDED")
                         users_added += 1
                     except python_freeipa.exceptions.FreeIPAError as e:
@@ -233,32 +225,7 @@ def cli(skip_groups, only_members):
                             == 'user with name "%s" already exists' % person["username"]
                         ):
                             # Update them instead
-                            ipa.user_mod(
-                                person["username"],
-                                first_name=first_name,
-                                last_name=last_name,
-                                full_name=name,
-                                gecos=name,
-                                display_name=name,
-                                home_directory="/home/fedora/%s" % person["username"],
-                                disabled=person["status"] != "active",
-                                # If they haven't synced yet, they must reset their password:
-                                random_pass=True,
-                                fasircnick=person["ircnick"].strip()
-                                if person["ircnick"]
-                                else None,
-                                faslocale=person["locale"].strip()
-                                if person["locale"]
-                                else None,
-                                fastimezone=person["timezone"].strip()
-                                if person["timezone"]
-                                else None,
-                                fasgpgkeyid=[
-                                    person["gpg_keyid"][:16].strip()
-                                    if person["gpg_keyid"]
-                                    else None
-                                ],
-                            )
+                            ipa.user_mod(person["username"], **user_args))
                             print("UPDATED")
                             users_edited += 1
                         else:
