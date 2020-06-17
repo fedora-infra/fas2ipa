@@ -266,6 +266,8 @@ def cli(skip_groups, only_members):
                             raise e
 
                 for groupname, group in person["group_roles"].items():
+                    if groupname in config["ignore_groups"]:
+                        continue
                     if groupname in groups_to_member_usernames:
                         groups_to_member_usernames[groupname].append(person["username"])
                     else:
@@ -288,17 +290,13 @@ def cli(skip_groups, only_members):
                 print_status("FAIL", "failure")
                 print(e)
 
+        click.echo("Adding members to groups")
         group_member_counter = 0
-        for group, members in groups_to_member_usernames.items():
-            if group in config["ignore_groups"]:
-                continue
-            with progressbar.ProgressBar(
-                max_value=len(members), redirect_stdout=True
-            ) as bar:
-                bar.max_value = len(members)
-                group_member_counter = 0
+        total = sum([len(members) for members in groups_to_member_usernames.values()])
+        with progressbar.ProgressBar(max_value=total, redirect_stdout=True) as bar:
+            for group, members in groups_to_member_usernames.items():
                 for chunk in chunks(members, config["group_chunks"]):
-                    group_member_counter += 1
+                    group_member_counter += len(chunk)
                     try:
                         instances[0].group_add_member(group, chunk, no_members=True)
                         print_status(
@@ -313,18 +311,15 @@ def cli(skip_groups, only_members):
                                 )
                         continue
                     finally:
-                        bar.update(group_member_counter * len(chunk))
+                        bar.update(group_member_counter)
 
+        click.echo("Adding sponsors to groups")
         group_sponsor_counter = 0
-        for group, sponsors in groups_to_sponsor_usernames.items():
-            if group in config["ignore_groups"]:
-                continue
-            with progressbar.ProgressBar(
-                max_value=len(sponsors), redirect_stdout=True
-            ) as bar:
-                group_sponsor_counter = 0
+        total = sum([len(members) for members in groups_to_sponsor_usernames.values()])
+        with progressbar.ProgressBar(max_value=total, redirect_stdout=True) as bar:
+            for group, sponsors in groups_to_sponsor_usernames.items():
                 for chunk in chunks(sponsors, config["group_chunks"]):
-                    group_sponsor_counter += 1
+                    group_sponsor_counter += len(chunk)
                     try:
                         instances[0]._request(
                             "group_add_member_manager", group, {"user": chunk}
@@ -341,6 +336,6 @@ def cli(skip_groups, only_members):
                                 )
                         continue
                     finally:
-                        bar.update(group_sponsor_counter * len(chunk))
+                        bar.update(group_sponsor_counter)
 
     stats()
