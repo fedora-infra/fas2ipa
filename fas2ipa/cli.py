@@ -120,6 +120,16 @@ Total FAS users: {stats['user_counter']}. Total users changed in FreeIPA: { user
     )
 
 
+def find_requirements(groups, prereq_id):
+    dependent_groups = []
+    for group in groups:
+        if group["prerequisite_id"] == prereq_id:
+            dependent_groups.append(group["name"])
+            subdeps = find_requirements(groups, group["id"])
+            dependent_groups.extend(subdeps)
+    return dependent_groups
+
+
 def migrate_groups(config, fas, ipa):
     if config["skip_groups"]:
         return {}
@@ -143,20 +153,48 @@ def migrate_groups(config, fas, ipa):
     click.echo(f"Got {len(fas_groups)} groups!")
 
     max_length = max([len(g["name"]) for g in fas_groups])
+
     for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
         counter += 1
         click.echo(group["name"].ljust(max_length + 2), nl=False)
-        status = migrate_group(group, ipa)
+        status = migrate_group(config, group, ipa)
         print_status(status)
         if status == Status.ADDED:
             added += 1
         elif status == Status.UPDATED:
             edited += 1
 
+    # add groups to agreements
+    for agreement in config.get("agreement"):
+
+        toplevel_prereq = fas.send_request(
+            "/group/list",
+            req_params={"search": agreement["group_prerequisite"]},
+            auth=True,
+            timeout=240,
+        )["groups"][0]["id"]
+
+        agreement_required = find_requirements(fas_groups, toplevel_prereq)
+
+        for dep_name in progressbar.progressbar(
+            agreement_required, redirect_stdout=True
+        ):
+            result = ipa._request(
+                "fasagreement_add_group", agreement["name"], {"group": dep_name}
+            )
+            if result["completed"]:
+                print_status(
+                    Status.ADDED, f"Added {dep_name} to the {agreement['name']}"
+                )
+            else:
+                print_status(
+                    Status.SKIPPED, f"{dep_name} already requires {agreement['name']}"
+                )
+
     return dict(groups_added=added, groups_edited=edited, groups_counter=counter,)
 
 
-def migrate_group(group, ipa):
+def migrate_group(config, group, ipa):
     name = group["name"].lower()
     # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
     # if we have an irc channel defined. try to generate the irc:// uri
@@ -248,6 +286,16 @@ def migrate_users(config, users, instances):
             groups_to_member_usernames[groupname].append(person["username"])
             if membership["role_type"] in ["administrator", "sponsor"]:
                 groups_to_sponsor_usernames[groupname].append(person["username"])
+
+        group_names = [g["name"] for g in person["memberships"]]
+        for agreement in config.get("agreement"):
+            if agreement["signed_group"] in group_names:
+                ipa._request(
+                    "fasagreement_add_user",
+                    agreement["name"],
+                    {"user": person["username"]},
+                )
+
         # Status
         print_status(status)
         if status == Status.ADDED:
@@ -304,6 +352,7 @@ def migrate_user(config, person, ipa):
                 return Status.UPDATED
             else:
                 raise e
+
     except python_freeipa.exceptions.Unauthorized:
         ipa.login(config["ipa"]["username"], config["ipa"]["password"])
         return migrate_user(config, person, ipa)
@@ -358,6 +407,21 @@ def add_users_to_groups(config, instances, groups_to_users, category):
                     bar.update(counter)
 
 
+def create_agreements(config, ipa):
+    click.echo("Creating Agreements")
+    for agreement in config.get("agreement"):
+        with open(agreement["description_file"], "r") as f:
+            agreement_description = f.read()
+        try:
+            ipa._request(
+                "fasagreement_add",
+                agreement["name"],
+                {"description": agreement_description},
+            )
+        except python_freeipa.exceptions.DuplicateEntry as e:
+            click.echo(e)
+
+
 class Stats(defaultdict):
     def __init__(self, *args, **kwargs):
         super().__init__(lambda: 0, *args, **kwargs)
@@ -396,6 +460,9 @@ def cli(skip_groups, only_members, users_start_at):
     click.echo("Logged into IPA")
 
     stats = Stats()
+
+    if config.get("agreement"):
+        create_agreements(config, ipa)
 
     groups_stats = migrate_groups(config, fas, ipa)
     stats.update(groups_stats)
