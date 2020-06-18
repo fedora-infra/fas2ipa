@@ -23,6 +23,6 @@ url = "https://admin.fedoraproject.org/accounts"
 
 [ipa]
 instances = ["ipa.fas2ipa.test"]
-# cert_path = 
-# username = 
-# password =
+cert_path = "/etc/ipa/ca.crt"
+username = "admin"
+password = "adminPassw0rd!"
