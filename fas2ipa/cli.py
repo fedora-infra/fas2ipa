@@ -22,7 +22,7 @@ INPUT_IF_EMTPY = {
 class FASWrapper:
     def __init__(self, config):
         self.fas = AccountSystem(
-            "https://admin.fedoraproject.org/accounts",
+            config["fas"]["url"],
             username=config["fas"]["username"],
             password=config["fas"]["password"],
         )

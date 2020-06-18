@@ -17,6 +17,7 @@ replay = false
 
 
 [fas]
+url = "https://admin.fedoraproject.org/accounts"
 # username = 
 # password = 
 
