@@ -327,6 +327,18 @@ def add_users_to_groups(config, instances, groups_to_users, category):
                     bar.update(counter)
 
 
+class Stats(defaultdict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(lambda: 0, *args, **kwargs)
+
+    def update(self, new):
+        """Adds to the existing stats instead of overwriting"""
+        for key, value in new.items():
+            if not isinstance(value, int):
+                raise ValueError("Only integers are allowed in stats dicts")
+            self[key] += value
+
+
 @click.command()
 @click.option("--skip-groups", is_flag=True, help="Skip group creation")
 @click.option(
@@ -357,10 +369,10 @@ def cli(skip_groups, only_members):
         instances.append(ipa)
     click.echo("Logged into IPA")
 
-    stats = defaultdict(lambda: 0)
+    stats = Stats()
 
-    updated_stats = migrate_groups(config, fas, ipa)
-    stats.update(updated_stats)
+    groups_stats = migrate_groups(config, fas, ipa)
+    stats.update(groups_stats)
 
     alphabet = string.ascii_lowercase + string.digits
 
@@ -369,7 +381,7 @@ def cli(skip_groups, only_members):
         users = fas.send_request(
             "/user/list", req_params={"search": letter + "*"}, auth=True, timeout=240
         )
-        updated_stats = migrate_users(config, users["people"], instances)
-        stats.update(updated_stats)
+        users_stats = migrate_users(config, users["people"], instances)
+        stats.update(users_stats)
 
     print_stats(stats)
