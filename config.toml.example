@@ -26,3 +26,9 @@ instances = ["ipa.fas2ipa.test"]
 cert_path = "/etc/ipa/ca.crt"
 username = "admin"
 password = "adminPassw0rd!"
+
+[[agreement]]
+name = "Fedora Project Contributor Agreement"
+group_prerequisite = "cla_done"
+signed_group = "cla_fpca"
+description_file = "FPCA.txt"
