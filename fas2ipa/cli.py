@@ -200,8 +200,8 @@ def migrate_users(config, users, instances):
     counter = 0
     added = 0
     edited = 0
-    groups_to_member_usernames = {}
-    groups_to_sponsor_usernames = {}
+    groups_to_member_usernames = defaultdict(list)
+    groups_to_sponsor_usernames = defaultdict(list)
     max_length = max([len(u["username"]) for u in users])
 
     for person in progressbar.progressbar(users, redirect_stdout=True):
@@ -210,10 +210,16 @@ def migrate_users(config, users, instances):
             re_auth(config, instances)
         ipa = random.choice(instances)
         click.echo(person["username"].ljust(max_length + 2), nl=False)
+        # Add user
         status = migrate_user(config, person, ipa)
-        record_membership(
-            config, person, groups_to_member_usernames, groups_to_sponsor_usernames
-        )
+        # Record membership
+        for groupname, membership in person["group_roles"].items():
+            if groupname in config["ignore_groups"]:
+                continue
+            groups_to_member_usernames[groupname].append(person["username"])
+            if membership["role_type"] in ["administrator", "sponsor"]:
+                groups_to_sponsor_usernames[groupname].append(person["username"])
+        # Status
         print_status(status)
         if status == Status.ADDED:
             added += 1
@@ -280,18 +286,12 @@ def migrate_user(config, person, ipa):
 def record_membership(
     config, person, groups_to_member_usernames, groups_to_sponsor_usernames
 ):
-    for groupname, group in person["group_roles"].items():
+    for groupname, membership in person["group_roles"].items():
         if groupname in config["ignore_groups"]:
             continue
-        if groupname in groups_to_member_usernames:
-            groups_to_member_usernames[groupname].append(person["username"])
-        else:
-            groups_to_member_usernames[groupname] = [person["username"]]
-        if group["role_type"] in ["administrator", "sponsor"]:
-            if groupname in groups_to_sponsor_usernames:
-                groups_to_sponsor_usernames[groupname].append(person["username"])
-            else:
-                groups_to_sponsor_usernames[groupname] = [person["username"]]
+        groups_to_member_usernames[groupname].append(person["username"])
+        if membership["role_type"] in ["administrator", "sponsor"]:
+            groups_to_sponsor_usernames[groupname].append(person["username"])
 
 
 def add_users_to_groups(config, instances, groups_to_users, category):
