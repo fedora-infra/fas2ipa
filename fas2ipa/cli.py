@@ -50,15 +50,17 @@ class Status(Enum):
 
 
 def print_status(status, text=None):
-    if status in [Status.ADDED, Status.UPDATED]:
+    if status == Status.ADDED:
+        color = Style.BRIGHT + Fore.GREEN
+    if status == Status.UPDATED:
         color = Fore.GREEN
     elif status == Status.FAILED:
-        color = Fore.RED
+        color = Style.BRIGHT + Fore.RED
     elif status == Status.SKIPPED:
-        color = Fore.BLACK
+        color = Style.BRIGHT + Fore.BLACK
     else:
         raise ValueError(f"Unknown status: {status!r}")
-    print(f"{Style.BRIGHT}{color}{text or status.value}{Style.RESET_ALL}")
+    print(f"{color}{text or status.value}{Style.RESET_ALL}")
 
 
 def chunks(data, n):
