@@ -83,7 +83,7 @@ class Status(Enum):
 def print_status(status, text=None):
     if status == Status.ADDED:
         color = Style.BRIGHT + Fore.GREEN
-    if status == Status.UPDATED:
+    elif status == Status.UPDATED:
         color = Fore.GREEN
     elif status == Status.FAILED:
         color = Style.BRIGHT + Fore.RED
