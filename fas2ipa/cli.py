@@ -2,6 +2,7 @@ import random
 import string
 from collections import defaultdict
 from enum import Enum
+from urllib.parse import parse_qs, urlencode
 
 import click
 import progressbar
@@ -20,6 +21,9 @@ INPUT_IF_EMTPY = {
 
 
 class FASWrapper:
+
+    _remove_from_request_body = ("_csrf_token", "user_name", "password", "login")
+
     def __init__(self, config):
         self.fas = AccountSystem(
             config["fas"]["url"],
@@ -30,15 +34,42 @@ class FASWrapper:
         self._recorder = vcr.VCR(
             ignore_hosts=config["ipa"]["instances"],
             record_mode="new_episodes",
-            match_on=["method", "path", "query", "body"],
+            filter_post_data_parameters=self._remove_from_request_body,
         )
+        self._recorder.register_matcher("fas2ipa", self._vcr_match_request)
+
+    def _vcr_match_request(self, r1, r2):
+        assert r1.query == r2.query
+        body1 = parse_qs(r1.body)
+        body2 = parse_qs(r2.body)
+        for param in self._remove_from_request_body:
+            for body in (body1, body2):
+                try:
+                    del body[param]
+                except KeyError:
+                    pass
+        assert body1 == body2
+
+    def _vcr_get_cassette_path(self, url, *args, **kwargs):
+        params = kwargs.get("req_params", {})
+        cassette_path = [
+            "fixtures/fas-",
+            url[1:].replace("/", "_"),
+            ".yaml",
+        ]
+        if params:
+            cassette_path[2:2] = [
+                "-",
+                urlencode(params, doseq=True),
+            ]
+        return "".join(cassette_path)
 
     def send_request(self, url, *args, **kwargs):
         if not self._replay:
             return self.fas.send_request(url, *args, **kwargs)
 
-        cassette_path = ["fixtures/fas-", url[1:].replace("/", "_"), ".yaml"]
-        with self._recorder.use_cassette("".join(cassette_path)):
+        cassette_path = self._vcr_get_cassette_path(url, *args, **kwargs)
+        with self._recorder.use_cassette(cassette_path, match_on=["fas2ipa"]):
             return self.fas.send_request(url, *args, **kwargs)
 
 
