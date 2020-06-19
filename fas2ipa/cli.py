@@ -7,17 +7,12 @@ from urllib.parse import parse_qs, urlencode
 import click
 import progressbar
 import python_freeipa
-import toml
 import vcr
 from colorama import Fore, Style
 from python_freeipa import ClientLegacy as Client
 from fedora.client.fas2 import AccountSystem
 
-
-INPUT_IF_EMTPY = {
-    "fas": ["username", "password"],
-    "ipa": ["username", "password"],
-}
+from .config import get_config
 
 
 class FASWrapper:
@@ -380,15 +375,7 @@ class Stats(defaultdict):
     help="Only map users/sponsors to groups and ignore updating user entities",
 )
 def cli(skip_groups, only_members):
-    config = toml.load(["config.toml.example", "config.toml"])
-    for section, keys in INPUT_IF_EMTPY.items():
-        for key in keys:
-            if config[section][key]:
-                continue
-            is_password = key == "password"
-            config[section][key] = click.prompt(
-                f"Enter {key} for {section}", hide_input=is_password
-            )
+    config = get_config()
     config["skip_groups"] = skip_groups
     config["only_members"] = only_members
 
