@@ -374,7 +374,8 @@ class Stats(defaultdict):
     is_flag=True,
     help="Only map users/sponsors to groups and ignore updating user entities",
 )
-def cli(skip_groups, only_members):
+@click.option("--users-start-at", help="Start migrating users at that letter")
+def cli(skip_groups, only_members, users_start_at):
     config = get_config()
     config["skip_groups"] = skip_groups
     config["only_members"] = only_members
@@ -394,7 +395,10 @@ def cli(skip_groups, only_members):
     groups_stats = migrate_groups(config, fas, ipa)
     stats.update(groups_stats)
 
-    alphabet = string.ascii_lowercase + string.digits
+    alphabet = list(string.ascii_lowercase + string.digits)
+    if users_start_at:
+        start_index = alphabet.index(users_start_at.lower())
+        del alphabet[:start_index]
 
     for letter in alphabet:
         click.echo(f"finding users starting with {letter}")
