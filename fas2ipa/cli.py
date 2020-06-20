@@ -221,6 +221,9 @@ def migrate_group(group, ipa):
 
 def migrate_users(config, users, instances):
     print(f"{len(users)} found")
+    if not users:
+        return
+
     users.sort(key=lambda u: u["username"])
 
     counter = 0
@@ -361,6 +364,8 @@ class Stats(defaultdict):
 
     def update(self, new):
         """Adds to the existing stats instead of overwriting"""
+        if new is None:
+            return
         for key, value in new.items():
             if not isinstance(value, int):
                 raise ValueError("Only integers are allowed in stats dicts")
@@ -395,7 +400,7 @@ def cli(skip_groups, only_members, users_start_at):
     groups_stats = migrate_groups(config, fas, ipa)
     stats.update(groups_stats)
 
-    alphabet = list(string.ascii_lowercase + string.digits)
+    alphabet = list(string.ascii_lowercase)
     if users_start_at:
         start_index = alphabet.index(users_start_at.lower())
         del alphabet[:start_index]
