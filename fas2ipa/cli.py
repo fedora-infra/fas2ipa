@@ -289,12 +289,13 @@ def migrate_users(config, users, instances):
 
         group_names = [g["name"] for g in person["memberships"]]
         for agreement in config.get("agreement"):
-            if agreement["signed_group"] in group_names:
-                ipa._request(
-                    "fasagreement_add_user",
-                    agreement["name"],
-                    {"user": person["username"]},
-                )
+            for signed_group in agreement["signed_groups"]:
+                if signed_group in group_names:
+                    ipa._request(
+                        "fasagreement_add_user",
+                        agreement["name"],
+                        {"user": person["username"]},
+                    )
 
         # Status
         print_status(status)

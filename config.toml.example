@@ -30,5 +30,5 @@ password = "adminPassw0rd!"
 [[agreement]]
 name = "Fedora Project Contributor Agreement"
 group_prerequisite = "cla_done"
-signed_group = "cla_fpca"
+signed_groups = ["cla_fpca", "cla_done"]
 description_file = "FPCA.txt"
