@@ -187,9 +187,16 @@ def migrate_groups(config, fas, ipa):
                     Status.ADDED, f"Added {dep_name} to the {agreement['name']}"
                 )
             else:
-                print_status(
-                    Status.SKIPPED, f"{dep_name} already requires {agreement['name']}"
-                )
+                error_msg = result["failed"]["member"]["group"][0][1]
+                if error_msg == "This entry is already a member":
+                    print_status(
+                        Status.SKIPPED,
+                        f"{dep_name} already requires {agreement['name']}",
+                    )
+                elif error_msg == "no such entry":
+                    print_status(Status.FAILED, f"No group named {dep_name}")
+                else:
+                    print(result["failed"])
 
     return dict(groups_added=added, groups_edited=edited, groups_counter=counter,)
 
@@ -286,16 +293,26 @@ def migrate_users(config, users, instances):
             groups_to_member_usernames[groupname].append(person["username"])
             if membership["role_type"] in ["administrator", "sponsor"]:
                 groups_to_sponsor_usernames[groupname].append(person["username"])
-
+        # Record agreement signatures
         group_names = [g["name"] for g in person["memberships"]]
         for agreement in config.get("agreement"):
-            for signed_group in agreement["signed_groups"]:
-                if signed_group in group_names:
-                    ipa._request(
-                        "fasagreement_add_user",
-                        agreement["name"],
-                        {"user": person["username"]},
-                    )
+            if set(agreement["signed_groups"]) & set(group_names):
+                # intersection is not empty: the user signed it
+                response = ipa._request(
+                    "fasagreement_add_user",
+                    agreement["name"],
+                    {"user": person["username"]},
+                )
+                if response["completed"] == 0:
+                    errors = response["failed"]["memberuser"]["user"]
+                    if set(e[1] for e in errors) != set(
+                        ["This entry is already a member"]
+                    ):
+                        print_status(
+                            Status.FAILED,
+                            f"Could not mark {person['username']} as having signed "
+                            f"{agreement['name']}: {response['failed']}",
+                        )
 
         # Status
         print_status(status)
@@ -384,7 +401,8 @@ def add_users_to_groups(config, instances, groups_to_users, category):
         return
     counter = 0
     with progressbar.ProgressBar(max_value=total, redirect_stdout=True) as bar:
-        for group, members in groups_to_users.items():
+        for group in sorted(groups_to_users):
+            members = groups_to_users[group]
             for chunk in chunks(members, config["group_chunks"]):
                 counter += len(chunk)
                 ipa = random.choice(instances)
@@ -403,7 +421,11 @@ def add_users_to_groups(config, instances, groups_to_users, category):
                                 Status.FAILED,
                                 f"Failed to add {msg[0]} in the {category} of {group}: {msg[1]}",
                             )
-                    continue
+                except python_freeipa.exceptions.NotFound as e:
+                    print_status(
+                        Status.FAILED,
+                        f"Failed to add {chunk} in the {category} of {group}: {e}",
+                    )
                 finally:
                     bar.update(counter)
 
