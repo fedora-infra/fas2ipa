@@ -430,19 +430,24 @@ def record_signatures(config, instances, agreements_to_usernames):
         if not signers:
             click.echo("Nothing to do.")
             continue
-        for username in progressbar.progressbar(signers, redirect_stdout=True):
-            ipa = random.choice(instances)
-            response = ipa._request(
-                "fasagreement_add_user", agreement["name"], {"user": username},
-            )
-            if response["completed"] == 0:
-                errors = response["failed"]["memberuser"]["user"]
-                if set(e[1] for e in errors) != set(["This entry is already a member"]):
-                    print_status(
-                        Status.FAILED,
-                        f"Could not mark {username} as having signed "
-                        f"{agreement['name']}: {response['failed']}",
-                    )
+        counter = 0
+        with progressbar.ProgressBar(
+            max_value=len(signers), redirect_stdout=True
+        ) as bar:
+            for chunk in chunks(signers, config["group_chunks"]):
+                counter += len(chunk)
+                ipa = random.choice(instances)
+                response = ipa._request(
+                    "fasagreement_add_user", agreement["name"], {"user": chunk},
+                )
+                for msg in response["failed"]["memberuser"]["user"]:
+                    if msg[1] != "This entry is already a member":
+                        print_status(
+                            Status.FAILED,
+                            f"Could not mark {msg[0]} as having signed "
+                            f"{agreement['name']}: {response['failed']}",
+                        )
+                bar.update(counter)
 
 
 def create_agreements(config, ipa):
