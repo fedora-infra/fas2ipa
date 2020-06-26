@@ -314,7 +314,7 @@ def migrate_users(config, users, instances):
 
 
 def migrate_user(config, person, ipa):
-    if config["only_members"]:
+    if config["skip_user_add"]:
         return Status.SKIPPED
     if person["human_name"]:
         name = person["human_name"].strip()
@@ -378,6 +378,9 @@ def record_membership(
 
 
 def add_users_to_groups(config, instances, groups_to_users, category):
+    if config["skip_user_membership"]:
+        return
+
     if category not in ["members", "sponsors"]:
         raise ValueError("title must be eigher member or sponsor")
 
@@ -418,6 +421,9 @@ def add_users_to_groups(config, instances, groups_to_users, category):
 
 
 def record_signatures(config, instances, agreements_to_usernames):
+    if config["skip_user_signature"]:
+        return
+
     for agreement in config.get("agreement"):
         click.echo(f"Recording signers of the {agreement['name']} agreement")
         signers = agreements_to_usernames.get(agreement["name"], [])
@@ -471,15 +477,29 @@ class Stats(defaultdict):
 @click.command()
 @click.option("--skip-groups", is_flag=True, help="Skip group creation")
 @click.option(
-    "--only-members",
+    "--skip-user-add", is_flag=True, help="Don't add or update users",
+)
+@click.option(
+    "--skip-user-membership", is_flag=True, help="Don't add users to groups",
+)
+@click.option(
+    "--skip-user-signature",
     is_flag=True,
-    help="Only map users/sponsors to groups and ignore updating user entities",
+    help="Don't store users signatures of agreements",
 )
 @click.option("--users-start-at", help="Start migrating users at that letter")
-def cli(skip_groups, only_members, users_start_at):
+def cli(
+    skip_groups,
+    skip_user_add,
+    skip_user_membership,
+    skip_user_signature,
+    users_start_at,
+):
     config = get_config()
     config["skip_groups"] = skip_groups
-    config["only_members"] = only_members
+    config["skip_user_add"] = skip_user_add
+    config["skip_user_membership"] = skip_user_membership
+    config["skip_user_signature"] = skip_user_signature
 
     fas = FASWrapper(config)
     click.echo("Logged into FAS")
