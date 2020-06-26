@@ -1,8 +1,11 @@
+import os
 from copy import deepcopy
 
 import click
 import toml
 
+
+CONFIG_FILES = ["/etc/fas2ipa/config.toml", "config.toml"]
 
 INPUT_IF_EMTPY = {
     "fas": ["username", "password"],
@@ -40,7 +43,7 @@ DEFAULT_CONFIG = {
 
 def get_config():
     config = deepcopy(DEFAULT_CONFIG)
-    config.update(toml.load(["/etc/fas2ipa/config.toml", "config.toml"]))
+    config.update(toml.load([f for f in CONFIG_FILES if os.path.exists(f)]))
     for section, keys in INPUT_IF_EMTPY.items():
         for key in keys:
             if config[section][key]:
