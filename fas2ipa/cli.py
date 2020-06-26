@@ -276,6 +276,7 @@ def migrate_users(config, users, instances):
     edited = 0
     groups_to_member_usernames = defaultdict(list)
     groups_to_sponsor_usernames = defaultdict(list)
+    agreements_to_usernames = defaultdict(list)
     max_length = max([len(u["username"]) for u in users])
 
     for person in progressbar.progressbar(users, redirect_stdout=True):
@@ -298,22 +299,7 @@ def migrate_users(config, users, instances):
         for agreement in config.get("agreement"):
             if set(agreement["signed_groups"]) & set(group_names):
                 # intersection is not empty: the user signed it
-                response = ipa._request(
-                    "fasagreement_add_user",
-                    agreement["name"],
-                    {"user": person["username"]},
-                )
-                if response["completed"] == 0:
-                    errors = response["failed"]["memberuser"]["user"]
-                    if set(e[1] for e in errors) != set(
-                        ["This entry is already a member"]
-                    ):
-                        print_status(
-                            Status.FAILED,
-                            f"Could not mark {person['username']} as having signed "
-                            f"{agreement['name']}: {response['failed']}",
-                        )
-
+                agreements_to_usernames[agreement["name"]].append(person["username"])
         # Status
         print_status(status)
         if status == Status.ADDED:
@@ -321,6 +307,7 @@ def migrate_users(config, users, instances):
         elif status == Status.UPDATED:
             edited += 1
 
+    record_signatures(config, instances, agreements_to_usernames)
     add_users_to_groups(config, instances, groups_to_member_usernames, "members")
     add_users_to_groups(config, instances, groups_to_sponsor_usernames, "sponsors")
     return dict(user_counter=counter, users_added=added, users_edited=edited,)
@@ -428,6 +415,28 @@ def add_users_to_groups(config, instances, groups_to_users, category):
                     )
                 finally:
                     bar.update(counter)
+
+
+def record_signatures(config, instances, agreements_to_usernames):
+    for agreement in config.get("agreement"):
+        click.echo(f"Recording signers of the {agreement['name']} agreement")
+        signers = agreements_to_usernames.get(agreement["name"], [])
+        if not signers:
+            click.echo("Nothing to do.")
+            continue
+        for username in progressbar.progressbar(signers, redirect_stdout=True):
+            ipa = random.choice(instances)
+            response = ipa._request(
+                "fasagreement_add_user", agreement["name"], {"user": username},
+            )
+            if response["completed"] == 0:
+                errors = response["failed"]["memberuser"]["user"]
+                if set(e[1] for e in errors) != set(["This entry is already a member"]):
+                    print_status(
+                        Status.FAILED,
+                        f"Could not mark {username} as having signed "
+                        f"{agreement['name']}: {response['failed']}",
+                    )
 
 
 def create_agreements(config, ipa):
