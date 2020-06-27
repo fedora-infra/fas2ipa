@@ -100,26 +100,6 @@ def re_auth(config, instances):
         ipa.login(config["ipa"]["username"], config["ipa"]["password"])
 
 
-def print_stats(stats):
-    groups_changed = stats["groups_added"] + stats["groups_edited"]
-    users_changed = stats["users_added"] + stats["users_edited"]
-    print(
-        f"""#######################################################
-
-Successfully added {stats['users_added']} users.
-Successfully edited {stats['users_edited']} users.
-
-Successfully created {stats['groups_added']} groups.
-Successfully edited {stats['groups_edited']} groups.
-
-Total FAS groups: {stats['groups_counter']}. Total groups changed in FreeIPA: { groups_changed }
-Total FAS users: {stats['user_counter']}. Total users changed in FreeIPA: { users_changed }
-
-#######################################################
-"""
-    )
-
-
 def find_requirements(groups, prereq_id):
     dependent_groups = []
     for group in groups:
@@ -462,7 +442,7 @@ def create_agreements(config, ipa):
                 {"description": agreement_description},
             )
         except python_freeipa.exceptions.DuplicateEntry as e:
-            click.echo(e)
+            print_status(Status.SKIPPED, str(e))
 
 
 class Stats(defaultdict):
@@ -477,6 +457,25 @@ class Stats(defaultdict):
             if not isinstance(value, int):
                 raise ValueError("Only integers are allowed in stats dicts")
             self[key] += value
+
+    def print(self):
+        groups_changed = self["groups_added"] + self["groups_edited"]
+        users_changed = self["users_added"] + self["users_edited"]
+        print(
+            f"""~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Successfully added {self['users_added']} users.
+Successfully edited {self['users_edited']} users.
+
+Successfully created {self['groups_added']} groups.
+Successfully edited {self['groups_edited']} groups.
+
+Total FAS groups: {self['groups_counter']}. Total groups changed in FreeIPA: { groups_changed }
+Total FAS users: {self['user_counter']}. Total users changed in FreeIPA: { users_changed }
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""
+        )
 
 
 @click.command()
@@ -537,4 +536,4 @@ def cli(
         users_stats = migrate_users(config, users["people"], instances)
         stats.update(users_stats)
 
-    print_stats(stats)
+    stats.print()
