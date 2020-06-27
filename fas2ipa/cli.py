@@ -375,6 +375,8 @@ def add_users_to_groups(config, instances, groups_to_users, category):
             members = groups_to_users[group]
             for chunk in chunks(members, config["group_chunks"]):
                 counter += len(chunk)
+                if counter % config["reauth_every"] == 0:
+                    re_auth(config, instances)
                 ipa = random.choice(instances)
                 try:
                     if category == "members":
@@ -416,6 +418,8 @@ def record_signatures(config, instances, agreements_to_usernames):
         ) as bar:
             for chunk in chunks(signers, config["group_chunks"]):
                 counter += len(chunk)
+                if counter % config["reauth_every"] == 0:
+                    re_auth(config, instances)
                 ipa = random.choice(instances)
                 response = ipa._request(
                     "fasagreement_add_user", agreement["name"], {"user": chunk},
