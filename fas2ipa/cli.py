@@ -1,4 +1,3 @@
-import string
 from urllib.parse import parse_qs, urlencode
 
 import click
@@ -8,9 +7,9 @@ from fedora.client.fas2 import AccountSystem
 
 from .config import get_config
 from .statistics import Stats
-from .users import migrate_users
-from .groups import migrate_groups
-from .agreements import create_agreements
+from .users import Users
+from .groups import Groups
+from .agreements import Agreements
 
 
 class FASWrapper:
@@ -105,23 +104,16 @@ def cli(
 
     stats = Stats()
 
+    agreements = Agreements(config, instances, fas)
     if config.get("agreement"):
-        create_agreements(config, ipa)
+        agreements.create()
 
-    groups_stats = migrate_groups(config, fas, ipa)
+    groups = Groups(config, instances, fas, agreements=agreements)
+    groups_stats = groups.migrate_groups()
     stats.update(groups_stats)
 
-    alphabet = list(string.ascii_lowercase)
-    if users_start_at:
-        start_index = alphabet.index(users_start_at.lower())
-        del alphabet[:start_index]
-
-    for letter in alphabet:
-        click.echo(f"finding users starting with {letter}")
-        users = fas.send_request(
-            "/user/list", req_params={"search": letter + "*"}, auth=True, timeout=240
-        )
-        users_stats = migrate_users(config, users["people"], instances)
-        stats.update(users_stats)
+    users = Users(config, instances, fas, agreements=agreements)
+    users_stats = users.migrate_users(users_start_at=users_start_at)
+    stats.update(users_stats)
 
     stats.print()
