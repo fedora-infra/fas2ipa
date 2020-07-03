@@ -25,9 +25,9 @@ class ObjectManager:
         return random.choice(self.ipa_instances)
 
     def check_reauth(self, counter):
-        if counter % self.config["reauth_every"] == 0:
+        if counter % self.config["ipa"]["reauth_every"] == 0:
             re_auth(self.config, self.ipa_instances)
 
     def chunks(self, items):
-        size = self.config["group_chunks"]
+        size = self.config["chunks"]
         return [items[x : x + size] for x in range(0, len(items), size)]

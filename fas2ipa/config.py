@@ -13,18 +13,18 @@ INPUT_IF_EMTPY = {
 }
 
 DEFAULT_CONFIG = {
-    # * for all
-    "group_search": "*",
-    # After too long a session can expire.
-    # So we just trigger a re-atuh, every reauth_every account imports.
-    "reauth_every": 150,
-    # We batch our group membership queries.
-    # How many members maximum should be in each request?
-    "group_chunks": 30,
-    # Which groups should we ignore when creating and mapping?
-    "ignore_groups": ["cla_fpca", "cla_done", "cla_fedora"],
+    # We batch our queries (groups, users, memberships, etc).
+    # How many objects maximum should be in each request?
+    "chunks": 30,
     # Record and replay requests to FAS (for testing)
     "replay": False,
+    # Groups configuration
+    "groups": {
+        # * for all
+        "search": "*",
+        # Which groups should we ignore when creating and mapping?
+        "ignore": ["cla_fpca", "cla_done", "cla_fedora"],
+    },
     # FAS configuration
     "fas": {
         "url": "https://admin.fedoraproject.org/accounts",
@@ -37,6 +37,9 @@ DEFAULT_CONFIG = {
         "cert_path": None,
         "username": None,
         "password": None,
+        # After too long a session can expire.
+        # So we just trigger a re-auth, every reauth_every imports.
+        "reauth_every": 300,
     },
 }
 

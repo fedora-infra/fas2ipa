@@ -23,14 +23,14 @@ class Groups(ObjectManager):
         click.echo("Getting the list of groups...")
         fas_groups = self.fas.send_request(
             "/group/list",
-            req_params={"search": self.config["group_search"]},
+            req_params={"search": self.config["groups"]["search"]},
             auth=True,
             timeout=240,
         )
         fas_groups = [
             g
             for g in fas_groups["groups"]
-            if g["name"] not in self.config["ignore_groups"]
+            if g["name"] not in self.config["groups"]["ignore"]
         ]
         fas_groups.sort(key=lambda g: g["name"])
         click.echo(f"Got {len(fas_groups)} groups!")

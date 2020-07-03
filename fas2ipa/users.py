@@ -59,7 +59,7 @@ class Users(ObjectManager):
             status = self.migrate_user(person)
             # Record membership
             for groupname, membership in person["group_roles"].items():
-                if groupname in self.config["ignore_groups"]:
+                if groupname in self.config["groups"]["ignore"]:
                     continue
                 groups_to_member_usernames[groupname].append(person["username"])
                 if membership["role_type"] in ["administrator", "sponsor"]:
