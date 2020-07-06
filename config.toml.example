@@ -6,6 +6,9 @@ chunks = 30
 # Record and replay requests to FAS (for testing)
 replay = false
 
+[users]
+skip_spam = true
+
 [groups]
 # * for all
 search = "*"

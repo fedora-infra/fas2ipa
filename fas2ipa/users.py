@@ -87,6 +87,8 @@ class Users(ObjectManager):
     def migrate_user(self, person):
         if self.config["skip_user_add"]:
             return Status.SKIPPED
+        if self.config["users"]["skip_spam"] and person["status"] == "spamcheck_denied":
+            return Status.SKIPPED
         if person["human_name"]:
             name = person["human_name"].strip()
             name_split = name.split(" ")

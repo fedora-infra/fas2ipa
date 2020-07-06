@@ -18,6 +18,8 @@ DEFAULT_CONFIG = {
     "chunks": 30,
     # Record and replay requests to FAS (for testing)
     "replay": False,
+    # Users configuration
+    "users": {"skip_spam": True},
     # Groups configuration
     "groups": {
         # * for all
