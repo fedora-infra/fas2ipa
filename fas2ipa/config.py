@@ -24,6 +24,8 @@ DEFAULT_CONFIG = {
         "search": "*",
         # Which groups should we ignore when creating and mapping?
         "ignore": ["cla_fpca", "cla_done", "cla_fedora"],
+        # Prefix the group names on import
+        "prefix": "",
     },
     # FAS configuration
     "fas": {

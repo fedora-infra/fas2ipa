@@ -54,7 +54,7 @@ class Groups(ObjectManager):
         return dict(groups_added=added, groups_edited=edited, groups_counter=counter,)
 
     def migrate_group(self, group):
-        name = group["name"].lower()
+        name = self.config["groups"]["prefix"] + group["name"].lower()
         # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
         # if we have an irc channel defined. try to generate the irc:// uri
         # there are a handful of groups that have an IRC server defined (freenode), but

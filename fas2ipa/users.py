@@ -162,10 +162,16 @@ class Users(ObjectManager):
                     self.check_reauth(counter)
                     try:
                         if category == "members":
-                            self.ipa.group_add_member(group, chunk, no_members=True)
+                            self.ipa.group_add_member(
+                                self.config["groups"]["prefix"] + group,
+                                chunk,
+                                no_members=True,
+                            )
                         elif category == "sponsors":
                             self.ipa._request(
-                                "group_add_member_manager", group, {"user": chunk}
+                                "group_add_member_manager",
+                                self.config["groups"]["prefix"] + group,
+                                {"user": chunk},
                             )
                         print_status(
                             Status.ADDED,
