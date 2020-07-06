@@ -111,8 +111,6 @@ class Users(ObjectManager):
                 display_name=name,
                 home_directory="/home/fedora/%s" % person["username"],
                 disabled=person["status"] != "active",
-                # If they haven't synced yet, they must reset their password:
-                random_pass=True,
                 fasircnick=person["ircnick"].strip() if person["ircnick"] else None,
                 faslocale=person["locale"].strip() if person["locale"] else None,
                 fastimezone=person["timezone"].strip() if person["timezone"] else None,
@@ -121,7 +119,10 @@ class Users(ObjectManager):
                 else None,
             )
             try:
-                self.ipa.user_add(person["username"], **user_args)
+                user_add_args = user_args.copy()
+                # If they haven't synced yet, they must reset their password:
+                user_add_args["random_pass"] = True
+                self.ipa.user_add(person["username"], **user_add_args)
                 return Status.ADDED
             except python_freeipa.exceptions.FreeIPAError as e:
                 if (
