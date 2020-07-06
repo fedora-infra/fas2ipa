@@ -1,4 +1,5 @@
 import string
+import re
 from collections import defaultdict
 
 import click
@@ -8,6 +9,9 @@ import python_freeipa
 from .status import Status, print_status
 from .utils import ObjectManager
 from .statistics import Stats
+
+
+CREATION_TIME_RE = re.compile(r"([0-9 :-]+).[0-9]+\+00:00")
 
 
 class Users(ObjectManager):
@@ -114,9 +118,11 @@ class Users(ObjectManager):
                 fasircnick=person["ircnick"].strip() if person["ircnick"] else None,
                 faslocale=person["locale"].strip() if person["locale"] else None,
                 fastimezone=person["timezone"].strip() if person["timezone"] else None,
-                fasgpgkeyid=[person["gpg_keyid"][:16].strip()]
-                if person["gpg_keyid"]
-                else None,
+                fasgpgkeyid=(
+                    [person["gpg_keyid"][:16].strip()] if person["gpg_keyid"] else None
+                ),
+                fasstatusnote=person["status"].strip(),
+                fascreationtime=CREATION_TIME_RE.sub(r"\1Z", person["creation"]),
             )
             try:
                 user_add_args = user_args.copy()
