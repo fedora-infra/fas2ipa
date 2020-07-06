@@ -76,7 +76,9 @@ class Agreements(ObjectManager):
                 agreement_required, redirect_stdout=True
             ):
                 result = self.ipa._request(
-                    "fasagreement_add_group", agreement["name"], {"group": dep_name}
+                    "fasagreement_add_group",
+                    agreement["name"],
+                    {"group": self.config["groups"]["prefix"] + dep_name},
                 )
                 if result["completed"]:
                     print_status(
