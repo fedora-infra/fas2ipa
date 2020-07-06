@@ -82,7 +82,8 @@ class Agreements(ObjectManager):
                 )
                 if result["completed"]:
                     print_status(
-                        Status.ADDED, f"Added {dep_name} to the {agreement['name']}"
+                        Status.ADDED,
+                        f"Marking {dep_name} as requiering the {agreement['name']}",
                     )
                 else:
                     error_msg = result["failed"]["member"]["group"][0][1]

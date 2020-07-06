@@ -162,6 +162,7 @@ class Users(ObjectManager):
                 for chunk in self.chunks(members):
                     counter += len(chunk)
                     self.check_reauth(counter)
+                    added = set(chunk[:])
                     try:
                         if category == "members":
                             self.ipa.group_add_member(
@@ -170,18 +171,26 @@ class Users(ObjectManager):
                                 no_members=True,
                             )
                         elif category == "sponsors":
-                            self.ipa._request(
+                            result = self.ipa._request(
                                 "group_add_member_manager",
                                 self.config["groups"]["prefix"] + group,
                                 {"user": chunk},
                             )
-                        print_status(
-                            Status.ADDED,
-                            f"Added {category} to {group}: {', '.join(chunk)}",
-                        )
+                            if result["failed"]["membermanager"]["user"]:
+                                raise python_freeipa.exceptions.ValidationError(
+                                    result["failed"]
+                                )
                     except python_freeipa.exceptions.ValidationError as e:
-                        for msg in e.message["member"]["user"]:
-                            if msg[1] != "This entry is already a member":
+                        errors = []
+                        for member_type in ("member", "membermanager"):
+                            try:
+                                errors.extend(e.message[member_type]["user"])
+                            except KeyError:
+                                continue
+                        for msg in errors:
+                            if msg[1] == "This entry is already a member":
+                                added.remove(msg[0])
+                            else:
                                 print_status(
                                     Status.FAILED,
                                     f"Failed to add {msg[0]} in the {category} of {group}: "
@@ -192,5 +201,16 @@ class Users(ObjectManager):
                             Status.FAILED,
                             f"Failed to add {chunk} in the {category} of {group}: {e}",
                         )
+                    except Exception as e:
+                        print_status(
+                            Status.FAILED,
+                            f"Failed to add {chunk} in the {category} of {group}: {e}",
+                        )
+                    else:
+                        if added:
+                            print_status(
+                                Status.ADDED,
+                                f"Added {category} to {group}: {', '.join(sorted(list(added)))}",
+                            )
                     finally:
                         bar.update(counter)
