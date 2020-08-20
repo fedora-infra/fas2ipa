@@ -107,15 +107,15 @@ class Users(ObjectManager):
             name = person["human_name"].strip()
             name_split = name.split(" ")
             if len(name_split) > 2 or len(name_split) == 1:
-                first_name = "<fnu>"
+                first_name = "<first-name-unset>"
                 last_name = name
             else:
                 first_name = name_split[0].strip()
                 last_name = name_split[1].strip()
         else:
-            name = "<fnu> <lnu>"
-            first_name = "<fnu>"
-            last_name = "<lnu>"
+            name = "<first-name-unset> <last-name-unset>"
+            first_name = "<first-name-unset>"
+            last_name = "<last-name-unset>"
         try:
             user_args = dict(
                 first_name=first_name,
