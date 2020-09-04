@@ -61,21 +61,23 @@ class Users(ObjectManager):
             click.echo(person["username"].ljust(max_length + 2), nl=False)
             # Add user
             status = self.migrate_user(person)
-            # Record membership
-            for groupname, membership in person["group_roles"].items():
-                if groupname in self.config["groups"]["ignore"]:
-                    continue
-                groups_to_member_usernames[groupname].append(person["username"])
-                if membership["role_type"] in ["administrator", "sponsor"]:
-                    groups_to_sponsor_usernames[groupname].append(person["username"])
-            # Record agreement signatures
-            group_names = [g["name"] for g in person["memberships"]]
-            for agreement in self.config.get("agreement"):
-                if set(agreement["signed_groups"]) & set(group_names):
-                    # intersection is not empty: the user signed it
-                    agreements_to_usernames[agreement["name"]].append(
-                        person["username"]
-                    )
+            if status != Status.SKIPPED:
+                # Record membership
+                for groupname, membership in person["group_roles"].items():
+                    if groupname in self.config["groups"]["ignore"]:
+                        continue
+                    groups_to_member_usernames[groupname].append(person["username"])
+                    if membership["role_type"] in ["administrator", "sponsor"]:
+                        groups_to_sponsor_usernames[groupname].append(person["username"])
+                # Record agreement signatures
+                group_names = [g["name"] for g in person["memberships"]]
+                for agreement in self.config.get("agreement"):
+                    if set(agreement["signed_groups"]) & set(group_names):
+                        # intersection is not empty: the user signed it
+                        agreements_to_usernames[agreement["name"]].append(
+                            person["username"]
+                        )
+
             # Status
             print_status(status)
             if status == Status.ADDED:
