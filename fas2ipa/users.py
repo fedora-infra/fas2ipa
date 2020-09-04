@@ -50,6 +50,7 @@ class Users(ObjectManager):
         counter = 0
         added = 0
         edited = 0
+        skipped = 0
         groups_to_member_usernames = defaultdict(list)
         groups_to_sponsor_usernames = defaultdict(list)
         agreements_to_usernames = defaultdict(list)
@@ -84,11 +85,18 @@ class Users(ObjectManager):
                 added += 1
             elif status == Status.UPDATED:
                 edited += 1
+            elif status == Status.SKIPPED:
+                skipped += 1
 
         self.agreements.record_user_signatures(agreements_to_usernames)
         self.add_users_to_groups(groups_to_member_usernames, "members")
         self.add_users_to_groups(groups_to_sponsor_usernames, "sponsors")
-        return dict(user_counter=counter, users_added=added, users_edited=edited,)
+        return {
+            "user_counter": counter,
+            "users_added": added,
+            "users_edited": edited,
+            "users_skipped": skipped,
+        }
 
     def migrate_user(self, person):
         if self.config["skip_user_add"]:

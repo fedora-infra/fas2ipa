@@ -22,6 +22,7 @@ class Stats(defaultdict):
 
 Successfully added {self['users_added']} users.
 Successfully edited {self['users_edited']} users.
+Skipped {self['users_skipped']} users.
 
 Successfully created {self['groups_added']} groups.
 Successfully edited {self['groups_edited']} groups.
