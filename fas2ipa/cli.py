@@ -76,7 +76,7 @@ class FASWrapper:
 @click.option(
     "--skip-user-signature",
     is_flag=True,
-    help="Don't store users signatures of agreements",
+    help="Don't store users' signatures of agreements",
 )
 @click.option("--users-start-at", help="Start migrating users at that letter")
 def cli(
