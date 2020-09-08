@@ -8,6 +8,7 @@ class Status(Enum):
     UPDATED = "UPDATED"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
+    UNMODIFIED = "UNMODIFIED"
 
 
 def print_status(status, text=None):
@@ -19,6 +20,8 @@ def print_status(status, text=None):
         color = Style.BRIGHT + Fore.RED
     elif status == Status.SKIPPED:
         color = Style.BRIGHT + Fore.BLUE
+    elif status == Status.UNMODIFIED:
+        color = Style.BRIGHT + Fore.YELLOW
     else:
         raise ValueError(f"Unknown status: {status!r}")
     print(f"{color}{text or status.value}{Style.RESET_ALL}")
