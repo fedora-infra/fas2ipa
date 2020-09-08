@@ -79,12 +79,19 @@ class FASWrapper:
     help="Don't store users' signatures of agreements",
 )
 @click.option("--users-start-at", help="Start migrating users at that (partial) name")
+@click.option(
+    "--restrict-users",
+    "-u",
+    multiple=True,
+    help="Restrict users to supplied glob pattern(s)",
+)
 def cli(
     skip_groups,
     skip_user_add,
     skip_user_membership,
     skip_user_signature,
     users_start_at,
+    restrict_users,
 ):
     config = get_config()
     config["skip_groups"] = skip_groups
@@ -113,7 +120,9 @@ def cli(
     stats.update(groups_stats)
 
     users = Users(config, instances, fas, agreements=agreements)
-    users_stats = users.migrate_users(users_start_at=users_start_at)
+    users_stats = users.migrate_users(
+        users_start_at=users_start_at, restrict_users=restrict_users
+    )
     stats.update(users_stats)
 
     stats.print()

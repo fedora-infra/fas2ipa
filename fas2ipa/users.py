@@ -19,30 +19,40 @@ class Users(ObjectManager):
         super().__init__(*args, **kwargs)
         self.agreements = agreements
 
-    def migrate_users(self, users_start_at=None):
-        alphabet = list(string.ascii_lowercase)
-        if users_start_at:
-            start_index = alphabet.index(users_start_at[0].lower())
-            del alphabet[: start_index + 1]
-            alphabet.insert(0, users_start_at)
+    def migrate_users(self, users_start_at=None, restrict_users=()):
+        if restrict_users:
+            user_patterns = [
+                pattern
+                for pattern in restrict_users
+                if not users_start_at
+                or pattern.replace("*", "\u0010ffff") >= users_start_at
+            ]
+        else:
+            alphabet = list(string.ascii_lowercase)
+            if users_start_at:
+                start_index = alphabet.index(users_start_at[0].lower())
+                user_patterns = [
+                    pattern + "*"
+                    for pattern in [users_start_at] + alphabet[: start_index + 1]
+                ]
 
         stats = Stats()
 
-        for letter_s in alphabet:
-            click.echo(f"finding users starting with {letter_s}")
+        for pattern in user_patterns:
+            if "*" in pattern:
+                click.echo(f"finding users matching {pattern!r}")
+            else:
+                click.echo(f"finding user {pattern!r}")
             result = self.fas.send_request(
-                "/user/list",
-                req_params={"search": letter_s + "*"},
-                auth=True,
-                timeout=240,
+                "/user/list", req_params={"search": pattern}, auth=True, timeout=240,
             )
             if users_start_at:
-                users_per_letter = [
+                users_per_pattern = [
                     u for u in result["people"] if u.username >= users_start_at
                 ]
             else:
-                users_per_letter = result["people"]
-            users_stats = self._migrate_users(users_per_letter)
+                users_per_pattern = result["people"]
+            users_stats = self._migrate_users(users_per_pattern)
             stats.update(users_stats)
 
         return stats
