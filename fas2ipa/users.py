@@ -126,13 +126,86 @@ class Users(ObjectManager):
             "users_skipped": skipped,
         }
 
+    @classmethod
+    def _compact_dict(cls, val):
+        # If it has ID fields, it's just to bulky and uninformative.
+        if any("id" in key for key in val):
+            return "{…}"
+
+        items_strs = (f"'{k}': …" for k in val.keys())
+        return f"{{{', '.join(items_strs)}}}"
+
+    @classmethod
+    def _compact_sequence(cls, val):
+        return (cls._compact_value(item) for item in val)
+
+    @classmethod
+    def _compact_list(cls, val):
+        return list(cls._compact_sequence(val))
+
+    @classmethod
+    def _compact_tuple(cls, val):
+        return tuple(cls._compact_sequence(val))
+
+    @classmethod
+    def _compact_set(cls, val):
+        return set(cls._compact_sequence(val))
+
+    @classmethod
+    def _compact_value(cls, val):
+        if isinstance(val, dict):
+            return cls._compact_dict(val)
+        elif isinstance(val, list):
+            return cls._compact_list(val)
+        elif isinstance(val, tuple):
+            return cls._compact_tuple(val)
+        elif isinstance(val, set):
+            return cls._compact_set(val)
+        else:
+            return val
+
     def migrate_user(self, person):
         if self.config["skip_user_add"]:
             return Status.SKIPPED
         if self.config["users"]["skip_spam"] and person["status"] == "spamcheck_denied":
             return Status.SKIPPED
-        if person["human_name"]:
-            name = person["human_name"].strip()
+
+        # Don't modify the original object, and remove all key/value pairs that should
+        # be ignored
+        person = {
+            key: value
+            for key, value in person.items()
+            if not (
+                key in {"group_roles", "security_answer", "security_question"}
+                or "token" in key
+            )
+        }
+
+        # Pop all key/value pairs that are processed
+        username = person.pop("username")
+        human_name = person.pop("human_name")
+        status = person.pop("status")
+        ircnick = person.pop("ircnick")
+        locale = person.pop("locale")
+        timezone = person.pop("timezone")
+        gpg_keyid = person.pop("gpg_keyid")
+        creation = person.pop("creation")
+
+        # Fail if any details are left, i.e. unprocessed
+        if person:
+            print("Unprocessed details:")
+            for key, value in sorted(person.items(), key=lambda x: x[0]):
+                if (
+                    key in {"email", "ssh_key", "telephone", "facsimile"}
+                    or "password" in key
+                ):
+                    print(f"\t{key}: <…shhhhh…>")
+                else:
+                    print(f"\t{key}: {self._compact_value(value)}")
+            return Status.FAILED
+
+        if human_name:
+            name = human_name.strip()
             name_split = name.split(" ")
             if len(name_split) > 2 or len(name_split) == 1:
                 first_name = "<first-name-unset>"
@@ -145,39 +218,34 @@ class Users(ObjectManager):
             first_name = "<first-name-unset>"
             last_name = "<last-name-unset>"
         try:
-            user_args = dict(
-                first_name=first_name,
-                last_name=last_name,
-                full_name=name,
-                gecos=name,
-                display_name=name,
-                home_directory="/home/fedora/%s" % person["username"],
-                disabled=person["status"] != "active",
-                fasircnick=person["ircnick"].strip() if person["ircnick"] else None,
-                faslocale=person["locale"].strip() if person["locale"] else None,
-                fastimezone=person["timezone"].strip() if person["timezone"] else None,
-                fasgpgkeyid=(
-                    [person["gpg_keyid"][:16].strip()] if person["gpg_keyid"] else None
-                ),
-                fasstatusnote=person["status"].strip(),
-                fascreationtime=CREATION_TIME_RE.sub(r"\1Z", person["creation"]),
-            )
+            user_args = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "full_name": name,
+                "gecos": name,
+                "display_name": name,
+                "home_directory": f"/home/fedora/{username}",
+                "disabled": status != "active",
+                "fasircnick": ircnick.strip() if ircnick else None,
+                "faslocale": locale.strip() if locale else None,
+                "fastimezone": timezone.strip() if timezone else None,
+                "fasgpgkeyid": [gpg_keyid[:16].strip()] if gpg_keyid else None,
+                "fasstatusnote": status.strip(),
+                "fascreationtime": CREATION_TIME_RE.sub(r"\1Z", creation),
+            }
             try:
                 user_add_args = user_args.copy()
                 # If they haven't synced yet, they must reset their password:
                 user_add_args["random_pass"] = True
-                self.ipa.user_add(person["username"], **user_add_args)
+                self.ipa.user_add(username, **user_add_args)
                 return Status.ADDED
             except python_freeipa.exceptions.FreeIPAError as e:
-                if (
-                    e.message
-                    == 'user with name "%s" already exists' % person["username"]
-                ):
+                if e.message == f'user with name "{username}" already exists':
                     # Update them instead
-                    self.ipa.user_mod(person["username"], **user_args)
+                    self.ipa.user_mod(username, **user_args)
                     return Status.UPDATED
                 else:
-                    raise e
+                    raise
 
         except python_freeipa.exceptions.Unauthorized:
             self.ipa.login(
