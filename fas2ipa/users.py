@@ -165,6 +165,11 @@ class Users(ObjectManager):
                 self.config["ipa"]["username"], self.config["ipa"]["password"]
             )
             return self.migrate_user(person)
+        except python_freeipa.exceptions.FreeIPAError as e:
+            if e.message != "no modifications to be performed":
+                print(e)
+                return Status.FAILED
+            return Status.UNMODIFIED
         except Exception as e:
             print(e)
             return Status.FAILED
