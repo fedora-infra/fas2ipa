@@ -22,20 +22,27 @@ class Users(ObjectManager):
     def migrate_users(self, users_start_at=None):
         alphabet = list(string.ascii_lowercase)
         if users_start_at:
-            start_index = alphabet.index(users_start_at.lower())
-            del alphabet[:start_index]
+            start_index = alphabet.index(users_start_at[0].lower())
+            del alphabet[: start_index + 1]
+            alphabet.insert(0, users_start_at)
 
         stats = Stats()
 
-        for letter in alphabet:
-            click.echo(f"finding users starting with {letter}")
-            users = self.fas.send_request(
+        for letter_s in alphabet:
+            click.echo(f"finding users starting with {letter_s}")
+            result = self.fas.send_request(
                 "/user/list",
-                req_params={"search": letter + "*"},
+                req_params={"search": letter_s + "*"},
                 auth=True,
                 timeout=240,
             )
-            users_stats = self._migrate_users(users["people"])
+            if users_start_at:
+                users_per_letter = [
+                    u for u in result["people"] if u.username >= users_start_at
+                ]
+            else:
+                users_per_letter = result["people"]
+            users_stats = self._migrate_users(users_per_letter)
             stats.update(users_stats)
 
         return stats
@@ -69,7 +76,9 @@ class Users(ObjectManager):
                         continue
                     groups_to_member_usernames[groupname].append(person["username"])
                     if membership["role_type"] in ["administrator", "sponsor"]:
-                        groups_to_sponsor_usernames[groupname].append(person["username"])
+                        groups_to_sponsor_usernames[groupname].append(
+                            person["username"]
+                        )
                 # Record agreement signatures
                 group_names = [g["name"] for g in person["memberships"]]
                 for agreement in self.config.get("agreement"):
