@@ -78,7 +78,7 @@ class FASWrapper:
     is_flag=True,
     help="Don't store users' signatures of agreements",
 )
-@click.option("--users-start-at", help="Start migrating users at that letter")
+@click.option("--users-start-at", help="Start migrating users at that (partial) name")
 def cli(
     skip_groups,
     skip_user_add,
