@@ -86,6 +86,8 @@ class Users(ObjectManager):
                 for groupname, membership in person["group_roles"].items():
                     if groupname in self.config["groups"]["ignore"]:
                         continue
+                    if membership["role_status"] != "approved":
+                        continue
                     groups_to_member_usernames[groupname].append(person["username"])
                     if membership["role_type"] in ["administrator", "sponsor"]:
                         groups_to_sponsor_usernames[groupname].append(
