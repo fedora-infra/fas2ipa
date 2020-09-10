@@ -253,7 +253,7 @@ class Users(ObjectManager):
                         if added:
                             print_status(
                                 Status.ADDED,
-                                f"Added {category} to {group}: {', '.join(sorted(list(added)))}",
+                                f"Added {category} to {group}: {', '.join(sorted(added))}",
                             )
                     finally:
                         bar.update(counter)
