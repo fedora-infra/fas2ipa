@@ -104,7 +104,7 @@ class Groups(ObjectManager):
                 except python_freeipa.exceptions.FreeIPAError as e:
                     if e.message != "no modifications to be performed":
                         raise
-                return Status.UPDATED
+                return Status.UNMODIFIED
             else:
                 print(e.message)
                 print(e)
