@@ -71,6 +71,7 @@ class Users(ObjectManager):
         edited = 0
         skipped = 0
         groups_to_member_usernames = defaultdict(list)
+        groups_to_unapproved_member_usernames = defaultdict(list)
         groups_to_sponsor_usernames = defaultdict(list)
         agreements_to_usernames = defaultdict(list)
         max_length = max([len(u["username"]) for u in users])
@@ -86,11 +87,14 @@ class Users(ObjectManager):
                 for groupname, membership in person["group_roles"].items():
                     if groupname in self.config["groups"]["ignore"]:
                         continue
-                    if membership["role_status"] != "approved":
-                        continue
-                    groups_to_member_usernames[groupname].append(person["username"])
-                    if membership["role_type"] in ["administrator", "sponsor"]:
-                        groups_to_sponsor_usernames[groupname].append(
+                    if membership["role_status"] == "approved":
+                        groups_to_member_usernames[groupname].append(person["username"])
+                        if membership["role_type"] in ["administrator", "sponsor"]:
+                            groups_to_sponsor_usernames[groupname].append(
+                                person["username"]
+                            )
+                    else:
+                        groups_to_unapproved_member_usernames[groupname].append(
                             person["username"]
                         )
                 # Record agreement signatures
@@ -114,6 +118,7 @@ class Users(ObjectManager):
         self.agreements.record_user_signatures(agreements_to_usernames)
         self.add_users_to_groups(groups_to_member_usernames, "members")
         self.add_users_to_groups(groups_to_sponsor_usernames, "sponsors")
+        self.remove_users_from_groups(groups_to_unapproved_member_usernames)
         return {
             "user_counter": counter,
             "users_added": added,
@@ -256,6 +261,64 @@ class Users(ObjectManager):
                             print_status(
                                 Status.ADDED,
                                 f"Added {category} to {group}: {', '.join(sorted(added))}",
+                            )
+                    finally:
+                        bar.update(counter)
+
+    def remove_users_from_groups(self, groups_to_users):
+        if self.config["skip_user_membership"]:
+            return
+
+        click.echo("Removing unapproved users from groups")
+        total = sum([len(members) for members in groups_to_users.values()])
+        if total == 0:
+            click.echo("Nothing to do.")
+            return
+        counter = 0
+        with progressbar.ProgressBar(max_value=total, redirect_stdout=True) as bar:
+            for group in sorted(groups_to_users):
+                members = groups_to_users[group]
+                for chunk in self.chunks(members):
+                    counter += len(chunk)
+                    self.check_reauth(counter)
+                    removed = set(chunk[:])
+                    try:
+                        self.ipa.group_remove_member(
+                            self.config["groups"]["prefix"] + group,
+                            chunk,
+                            no_members=True,
+                        )
+                    except python_freeipa.exceptions.ValidationError as e:
+                        errors = []
+                        for member_type in ("member", "membermanager"):
+                            try:
+                                errors.extend(e.message[member_type]["user"])
+                            except KeyError:
+                                continue
+                        for msg in errors:
+                            if msg[1] == "This entry is not a member":
+                                removed.remove(msg[0])
+                            else:
+                                print_status(
+                                    Status.FAILED,
+                                    f"Failed to remove {msg[0]} from {group}: "
+                                    + msg[1],
+                                )
+                    except python_freeipa.exceptions.NotFound as e:
+                        print_status(
+                            Status.FAILED,
+                            f"Failed to remove {chunk} from {group}: {e}",
+                        )
+                    except Exception as e:
+                        print_status(
+                            Status.FAILED,
+                            f"Failed to remove {chunk} from {group}: {e}",
+                        )
+                    else:
+                        if removed:
+                            print_status(
+                                Status.REMOVED,
+                                f"Removed from {group}: {', '.join(sorted(removed))}",
                             )
                     finally:
                         bar.update(counter)
