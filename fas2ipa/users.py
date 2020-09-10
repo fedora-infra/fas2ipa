@@ -185,10 +185,12 @@ class Users(ObjectManager):
         username = person.pop("username")
         human_name = person.pop("human_name")
         status = person.pop("status")
+        email = person.pop("email")
         ircnick = person.pop("ircnick")
         locale = person.pop("locale")
         timezone = person.pop("timezone")
         gpg_keyid = person.pop("gpg_keyid")
+        ssh_key = person.pop("ssh_key")
         creation = person.pop("creation")
 
         # Fail if any details are left, i.e. unprocessed
@@ -226,6 +228,8 @@ class Users(ObjectManager):
                 "display_name": name,
                 "home_directory": f"/home/fedora/{username}",
                 "disabled": status != "active",
+                "mail": email,
+                "ipasshpubkey": ssh_key,
                 "fasircnick": ircnick.strip() if ircnick else None,
                 "faslocale": locale.strip() if locale else None,
                 "fastimezone": timezone.strip() if timezone else None,
