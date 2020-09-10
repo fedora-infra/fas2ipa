@@ -172,12 +172,39 @@ class Users(ObjectManager):
 
         # Don't modify the original object, and remove all key/value pairs that should
         # be ignored
+        ignored_keys = {
+            "affiliation",
+            "alias_enabled",
+            "certificate_serial",
+            "comments",
+            "country_code",
+            "facsimile",
+            "group_roles",
+            "id",
+            "internal_comments",
+            "ipa_sync_status",
+            "last_seen",
+            "latitude",
+            "longitude",
+            "memberships",
+            "old_password",
+            "password",
+            "password_changed",
+            "postal_address",
+            "privacy",
+            "roles",
+            "security_answer",
+            "security_question",
+            "status_change",
+            "telephone",
+            "unverified_email",
+        }
+        ignored_key_substrings = ("token",)
         person = {
             key: value
             for key, value in person.items()
             if not (
-                key in {"group_roles", "security_answer", "security_question"}
-                or "token" in key
+                key in ignored_keys or any(t in key for t in ignored_key_substrings)
             )
         }
 
