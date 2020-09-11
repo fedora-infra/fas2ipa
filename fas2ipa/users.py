@@ -45,15 +45,19 @@ class Users(ObjectManager):
                 click.echo(f"finding users matching {pattern!r}")
             else:
                 click.echo(f"finding user {pattern!r}")
+
             result = self.fas.send_request(
                 "/user/list", req_params={"search": pattern}, auth=True, timeout=240,
             )
+
+            people = result["unapproved_people"] + result["people"]
             if users_start_at:
                 users_per_pattern = [
-                    u for u in result["people"] if u.username >= users_start_at
+                    u for u in people if u.username >= users_start_at
                 ]
             else:
-                users_per_pattern = result["people"]
+                users_per_pattern = people
+
             users_stats = self._migrate_users(users_per_pattern)
             stats.update(users_stats)
 
