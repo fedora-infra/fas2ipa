@@ -35,6 +35,8 @@ class Users(ObjectManager):
                     pattern + "*"
                     for pattern in [users_start_at] + alphabet[: start_index + 1]
                 ]
+            else:
+                user_patterns = [pattern + "*" for pattern in alphabet]
 
         stats = Stats()
 
