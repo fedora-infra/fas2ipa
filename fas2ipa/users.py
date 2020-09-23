@@ -195,7 +195,6 @@ class Users(ObjectManager):
             "password",
             "password_changed",
             "postal_address",
-            "privacy",
             "roles",
             "security_answer",
             "security_question",
@@ -223,6 +222,7 @@ class Users(ObjectManager):
         gpg_keyid = person.pop("gpg_keyid")
         ssh_key = person.pop("ssh_key")
         creation = person.pop("creation")
+        privacy = person.pop("privacy")
 
         # Fail if any details are left, i.e. unprocessed
         if person:
@@ -266,6 +266,7 @@ class Users(ObjectManager):
                 "fastimezone": timezone.strip() if timezone else None,
                 "fasgpgkeyid": [gpg_keyid[:16].strip()] if gpg_keyid else None,
                 "fasstatusnote": status.strip(),
+                "fasisprivate": bool(privacy),
                 "fascreationtime": CREATION_TIME_RE.sub(r"\1Z", creation),
             }
             try:
