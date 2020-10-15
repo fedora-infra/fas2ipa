@@ -11,6 +11,11 @@
   args:
     chdir: /vagrant/
 
+- name: uninstall existing freeipa server
+  shell: test -f /var/log/ipaserver-install.log && ipa-server-install --uninstall --unattended
+  ignore_errors: yes
+  changed_when: "False"
+
 - name: install freeipa server
   shell: ipa-server-install -a adminPassw0rd! --hostname=ipa.fas2ipa.test -r FAS2IPA.TEST -p adminPassw0rd! -n fas2ipa.test -U
 
