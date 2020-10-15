@@ -19,6 +19,7 @@ Vagrant.configure(2) do |config|
 
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "devel/ansible/playbook.yml"
+    ansible.config_file = "devel/ansible/ansible.cfg"
   end
 
 end
