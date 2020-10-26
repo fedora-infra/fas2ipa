@@ -1,16 +1,10 @@
 import os
 from copy import deepcopy
 
-import click
 import toml
 
 
 CONFIG_FILES = ["/etc/fas2ipa/config.toml", "config.toml"]
-
-INPUT_IF_EMTPY = {
-    "fas": ["username", "password"],
-    "ipa": ["username", "password"],
-}
 
 DEFAULT_CONFIG = {
     # We batch our queries (groups, users, memberships, etc).
@@ -24,16 +18,20 @@ DEFAULT_CONFIG = {
     "groups": {
         # * for all
         "search": "*",
-        # Which groups should we ignore when creating and mapping?
-        "ignore": ["cla_fpca", "cla_done", "cla_fedora"],
         # Prefix the group names on import
         "prefix": "",
     },
     # FAS configuration
     "fas": {
-        "url": "https://admin.fedoraproject.org/accounts",
-        "username": None,
-        "password": None,
+        "fedora": {
+            "url": "https://admin.fedoraproject.org/accounts",
+            "username": None,
+            "password": None,
+            "groups": {
+                # Which groups should we ignore when creating and mapping?
+                "ignore": ["cla_fpca", "cla_done", "cla_fedora"],
+            },
+        },
     },
     # IPA configuration
     "ipa": {
@@ -48,15 +46,48 @@ DEFAULT_CONFIG = {
 }
 
 
+def merge_dicts(d1: dict, d2: dict) -> dict:
+    """Merge nested dictionaries in depth.
+
+    :param d1: First dictionary to merge
+    :param d2: Second dictionary to merge, takes precedence over the first
+    :return: A dictionary merged from d1 and d2
+    """
+    d3 = {}
+    d1keys = set(d1)
+    d2keys = set(d2)
+
+    for k in d1keys - d2keys:
+        d3[k] = d1[k]
+
+    for k in d2keys - d1keys:
+        d3[k] = d2[k]
+
+    for k in d1keys & d2keys:
+        v1 = d1[k]
+        v2 = d2[k]
+        if isinstance(v1, dict) and isinstance(v2, dict):
+            d3[k] = merge_dicts(v1, v2)
+        else:
+            d3[k] = v2
+
+    return d3
+
+
 def get_config():
     config = deepcopy(DEFAULT_CONFIG)
     config.update(toml.load([f for f in CONFIG_FILES if os.path.exists(f)]))
-    for section, keys in INPUT_IF_EMTPY.items():
-        for key in keys:
-            if config[section][key]:
-                continue
-            is_password = key == "password"
-            config[section][key] = click.prompt(
-                f"Enter {key} for {section}", hide_input=is_password
-            )
+
+    # Copy defaults into FAS instance configurations
+    defaults = config.copy()
+    defaults.pop("fas", None)
+    defaults.pop("ipa", None)
+
+    new_fas_confs = {}
+
+    for fas_name, fas_conf in config["fas"].items():
+        new_fas_confs[fas_name] = merge_dicts(defaults, fas_conf)
+
+    config["fas"] = new_fas_confs
+
     return config

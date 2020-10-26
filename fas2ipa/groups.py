@@ -12,43 +12,55 @@ class Groups(ObjectManager):
         super().__init__(*args, **kwargs)
         self.agreements = agreements
 
-    def pull_from_fas(self) -> List[Dict]:
-        click.echo("Pulling group information from FAS...")
-        groups = self.fas.send_request(
-            "/group/list",
-            req_params={"search": self.config["groups"]["search"]},
-            auth=True,
-            timeout=240,
-        )["groups"]
-        groups.sort(key=lambda g: g["name"])
-        click.echo(f"Got {len(groups)} groups!")
+    def pull_from_fas(self) -> Dict[str, List[Dict]]:
+        fas_groups = {}
 
-        return groups
+        for fas_name, fas_inst in self.fas_instances.items():
+            click.echo(f"Pulling group information from FAS ({fas_name})...")
 
-    def push_to_ipa(self, groups: List[Dict]) -> dict:
+            fas_conf = self.config["fas"][fas_name]
+            groups = fas_inst.send_request(
+                "/group/list",
+                req_params={"search": fas_conf["groups"]["search"]},
+                auth=True,
+                timeout=240,
+            )["groups"]
+            groups.sort(key=lambda g: g["name"])
+            click.echo(f"Got {len(groups)} groups!")
+            fas_groups[fas_name] = groups
+
+        return fas_groups
+
+    def push_to_ipa(self, groups: Dict[str, List[Dict]]) -> dict:
         added = 0
         edited = 0
         counter = 0
 
-        # Start by creating groups
-        groups = [
-            g for g in groups
-            if g["name"] not in self.config["groups"].get("ignore", ())
-        ]
+        for fas_name, fas_groups in groups.items():
+            click.echo(f"Pushing {fas_name} group information to IPA...")
 
-        name_max_length = max([len(g["name"]) for g in groups])
+            fas_conf = self.config["fas"][fas_name]
 
-        click.echo("Pushing group information to IPA...")
-        for group in progressbar.progressbar(groups, redirect_stdout=True):
-            counter += 1
-            self.check_reauth(counter)
-            click.echo(group["name"].ljust(name_max_length + 2), nl=False)
-            status = self._write_group_to_ipa(group)
-            print_status(status)
-            if status == Status.ADDED:
-                added += 1
-            elif status == Status.UPDATED:
-                edited += 1
+            # Start by creating groups
+            fas_groups = [
+                g for g in fas_groups
+                if g["name"] not in fas_conf["groups"].get("ignore", ())
+            ]
+
+            name_max_length = max([len(g["name"]) for g in fas_groups])
+
+            for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
+                counter += 1
+                self.check_reauth(counter)
+                click.echo(group["name"].ljust(name_max_length + 2), nl=False)
+                status = self._write_group_to_ipa(fas_name, group)
+                print_status(status)
+                if status == Status.ADDED:
+                    added += 1
+                elif status == Status.UPDATED:
+                    edited += 1
+
+            click.echo(f"Done with {fas_name}")
 
         # add groups to agreements
         click.echo("Recording group requirements in IPA...")
@@ -58,8 +70,8 @@ class Groups(ObjectManager):
 
         return dict(groups_added=added, groups_edited=edited, groups_counter=counter,)
 
-    def _write_group_to_ipa(self, group):
-        name = self.config["groups"]["prefix"] + group["name"].lower()
+    def _write_group_to_ipa(self, fas_name: str, group: dict):
+        name = self.config["fas"][fas_name]["groups"].get("prefix", "") + group["name"].lower()
         # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
         # if we have an irc channel defined. try to generate the irc:// uri
         # there are a handful of groups that have an IRC server defined (freenode), but

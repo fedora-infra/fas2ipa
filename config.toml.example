@@ -12,15 +12,32 @@ skip_spam = true
 [groups]
 # * for all
 search = "*"
-# Which groups should we ignore when creating and mapping?
-ignore = ["cla_fpca", "cla_done", "cla_fedora"]
 # Prefix the group names on import
 prefix = ""
 
-[fas]
+[fas.fedora]
 url = "https://admin.fedoraproject.org/accounts"
-# username =
-# password =
+# username = ""
+# password = ""
+
+[fas.fedora.groups]
+# Which groups should we ignore when creating and mapping?
+ignore = ["cla_fpca", "cla_done", "cla_fedora"]
+
+[[fas.fedora.agreement]]
+name = "Fedora Project Contributor Agreement"
+group_prerequisite = "cla_done"
+signed_groups = ["cla_fpca", "cla_done"]
+description_file = "FPCA.txt"
+
+[fas.centos]
+url = "https://accounts.centos.org"
+# username = ""
+# password = ""
+
+[fas.centos.groups]
+# Prefix the group names on import
+prefix = "centos-"
 
 [ipa]
 instances = ["ipa.fas2ipa.test"]
@@ -30,9 +47,3 @@ password = "adminPassw0rd!"
 # After too long a session can expire.
 # So we just trigger a re-atuh, every reauth_every imports.
 reauth_every = 300
-
-[[agreement]]
-name = "Fedora Project Contributor Agreement"
-group_prerequisite = "cla_done"
-signed_groups = ["cla_fpca", "cla_done"]
-description_file = "FPCA.txt"
