@@ -28,8 +28,7 @@ class Groups(ObjectManager):
             timeout=240,
         )
         fas_groups = [
-            g
-            for g in fas_groups["groups"]
+            g for g in fas_groups["groups"]
             if g["name"] not in self.config["groups"]["ignore"]
         ]
         fas_groups.sort(key=lambda g: g["name"])
