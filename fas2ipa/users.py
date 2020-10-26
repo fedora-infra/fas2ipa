@@ -24,7 +24,7 @@ class Users(ObjectManager):
         self,
         users_start_at: Optional[str] = None,
         restrict_users: Optional[Sequence[str]] = None,
-    ) -> List[Dict]:
+    ) -> Dict[str, List[Dict]]:
         if restrict_users:
             user_patterns = [
                 pattern
@@ -44,27 +44,30 @@ class Users(ObjectManager):
             else:
                 user_patterns = [pattern + "*" for pattern in alphabet]
 
-        matched_users = []
+        fas_matched_users = {}
 
-        for pattern in user_patterns:
-            if "*" in pattern:
-                click.echo(f"finding users matching {pattern!r}")
-            else:
-                click.echo(f"finding user {pattern!r}")
+        for fas_name, fas_inst in self.fas_instances.items():
+            matched_users = fas_matched_users[fas_name] = []
 
-            result = self.fas.send_request(
-                "/user/list", req_params={"search": pattern}, auth=True, timeout=240,
-            )
+            for pattern in user_patterns:
+                if "*" in pattern:
+                    click.echo(f"[{fas_name}] finding users matching {pattern!r}")
+                else:
+                    click.echo(f"[{fas_name}] finding user {pattern!r}")
 
-            people = result["unapproved_people"] + result["people"]
-            if users_start_at:
-                matched_users.extend(
-                    u for u in people if u.username >= users_start_at
+                result = fas_inst.send_request(
+                    "/user/list", req_params={"search": pattern}, auth=True, timeout=240,
                 )
-            else:
-                matched_users.extend(people)
 
-        return matched_users
+                people = result["unapproved_people"] + result["people"]
+                if users_start_at:
+                    matched_users.extend(
+                        u for u in people if u.username >= users_start_at
+                    )
+                else:
+                    matched_users.extend(people)
+
+        return fas_matched_users
 
     def push_to_ipa(self, users: List[Dict]) -> Stats:
         stats = Stats()
@@ -114,7 +117,7 @@ class Users(ObjectManager):
                         )
                 # Record agreement signatures
                 group_names = [g["name"] for g in person["memberships"]]
-                for agreement in self.config.get("agreement"):
+                for agreement in self.config.get("agreement", ()):
                     if set(agreement["signed_groups"]) & set(group_names):
                         # intersection is not empty: the user signed it
                         agreements_to_usernames[agreement["name"]].append(

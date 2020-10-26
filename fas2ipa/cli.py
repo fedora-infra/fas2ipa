@@ -19,11 +19,11 @@ class FASWrapper:
 
     _remove_from_request_body = ("_csrf_token", "user_name", "password", "login")
 
-    def __init__(self, config):
+    def __init__(self, config, inst_conf):
         self.fas = AccountSystem(
-            config["fas"]["url"],
-            username=config["fas"]["username"],
-            password=config["fas"]["password"],
+            inst_conf["url"],
+            username=inst_conf["username"],
+            password=inst_conf["password"],
         )
         self._replay = config["replay"]
         self._recorder = vcr.VCR(
@@ -148,11 +148,13 @@ def cli(
             f"Refusing to overwrite '{dataset_file}', use --force-overwrite to override."
         )
 
+    fas_instances = {}
+
     if pull:
-        fas = FASWrapper(config)
-        click.echo("Logged into FAS")
-    else:
-        fas = None
+        for inst_name, inst_conf in config["fas"].items():
+            fas = FASWrapper(config, inst_conf)
+            fas_instances[inst_name] = fas
+            click.echo(f"Logged into FAS ({inst_name}): {inst_conf['url']}")
 
     if push:
         ipa_instances = []
@@ -166,12 +168,9 @@ def cli(
 
     stats = Stats()
 
-    agreements = Agreements(config, ipa_instances, fas)
-    if push and config.get("agreement"):
-        agreements.push_to_ipa()
-
-    users_mgr = Users(config, ipa_instances, fas, agreements=agreements)
-    groups_mgr = Groups(config, ipa_instances, fas, agreements=agreements)
+    agreements_mgr = Agreements(config, ipa_instances, fas_instances)
+    users_mgr = Users(config, ipa_instances, fas_instances, agreements=agreements_mgr)
+    groups_mgr = Groups(config, ipa_instances, fas_instances, agreements=agreements_mgr)
 
     if pull:
         if not skip_groups:
@@ -184,9 +183,14 @@ def cli(
         if dataset_file:
             save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)
 
-    if push and not skip_groups:
-        groups_stats = groups_mgr.push_to_ipa(dataset["groups"])
-        stats.update(groups_stats)
+    if push:
+        if any(fas.get("agreement") for fas in config["fas"].values()):
+            # Create agreements, relations to users and groups will be done later
+            agreements_mgr.push_to_ipa()
+
+        if not skip_groups:
+            groups_stats = groups_mgr.push_to_ipa(dataset["groups"])
+            stats.update(groups_stats)
 
         users_stats = users_mgr.push_to_ipa(dataset["users"])
         stats.update(users_stats)

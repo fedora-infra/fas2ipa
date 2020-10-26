@@ -19,10 +19,10 @@ def re_auth(config, instances):
 
 
 class ObjectManager:
-    def __init__(self, config, ipa_instances, fas):
+    def __init__(self, config, ipa_instances, fas_instances):
         self.config = config
         self.ipa_instances = ipa_instances
-        self.fas = fas
+        self.fas_instances = fas_instances
 
     @property
     def ipa(self):
