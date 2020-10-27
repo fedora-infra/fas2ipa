@@ -1,6 +1,7 @@
 import click
 import progressbar
 import python_freeipa
+from typing import Dict, List
 
 from .status import Status, print_status
 from .utils import ObjectManager
@@ -11,36 +12,37 @@ class Groups(ObjectManager):
         super().__init__(*args, **kwargs)
         self.agreements = agreements
 
-    def migrate_groups(self):
-        if self.config["skip_groups"]:
-            return {}
-
-        added = 0
-        edited = 0
-        counter = 0
-
-        # Start by creating groups
-        click.echo("Getting the list of groups...")
-        fas_groups = self.fas.send_request(
+    def pull_from_fas(self) -> List[Dict]:
+        click.echo("Pulling group information from FAS...")
+        groups = self.fas.send_request(
             "/group/list",
             req_params={"search": self.config["groups"]["search"]},
             auth=True,
             timeout=240,
         )
-        fas_groups = [
-            g for g in fas_groups["groups"]
+        groups = [
+            g for g in groups["groups"]
             if g["name"] not in self.config["groups"]["ignore"]
         ]
-        fas_groups.sort(key=lambda g: g["name"])
-        click.echo(f"Got {len(fas_groups)} groups!")
+        groups.sort(key=lambda g: g["name"])
+        click.echo(f"Got {len(groups)} groups!")
 
-        max_length = max([len(g["name"]) for g in fas_groups])
+        return groups
 
-        for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
+    def push_to_ipa(self, groups: List[Dict]) -> dict:
+        added = 0
+        edited = 0
+        counter = 0
+
+        # Start by creating groups
+        name_max_length = max([len(g["name"]) for g in groups])
+
+        click.echo("Pushing group information to IPA...")
+        for group in progressbar.progressbar(groups, redirect_stdout=True):
             counter += 1
             self.check_reauth(counter)
-            click.echo(group["name"].ljust(max_length + 2), nl=False)
-            status = self.migrate_group(group)
+            click.echo(group["name"].ljust(name_max_length + 2), nl=False)
+            status = self._write_group_to_ipa(group)
             print_status(status)
             if status == Status.ADDED:
                 added += 1
@@ -48,11 +50,14 @@ class Groups(ObjectManager):
                 edited += 1
 
         # add groups to agreements
-        self.agreements.record_group_requirements(fas_groups)
+        click.echo("Recording group requirements in IPA...")
+        self.agreements.record_group_requirements(groups)
+
+        click.echo("Done.")
 
         return dict(groups_added=added, groups_edited=edited, groups_counter=counter,)
 
-    def migrate_group(self, group):
+    def _write_group_to_ipa(self, group):
         name = self.config["groups"]["prefix"] + group["name"].lower()
         # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
         # if we have an irc channel defined. try to generate the irc:// uri

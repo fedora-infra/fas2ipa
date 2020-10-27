@@ -115,9 +115,11 @@ def cli(
     if config.get("agreement"):
         agreements.create()
 
-    groups = Groups(config, instances, fas, agreements=agreements)
-    groups_stats = groups.migrate_groups()
-    stats.update(groups_stats)
+    if not skip_groups:
+        groups_mgr = Groups(config, instances, fas, agreements=agreements)
+        groups = groups_mgr.pull_from_fas()
+        groups_stats = groups_mgr.push_to_ipa(groups)
+        stats.update(groups_stats)
 
     users = Users(config, instances, fas, agreements=agreements)
     users_stats = users.migrate_users(
