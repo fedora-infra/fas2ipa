@@ -121,10 +121,11 @@ def cli(
         groups_stats = groups_mgr.push_to_ipa(groups)
         stats.update(groups_stats)
 
-    users = Users(config, instances, fas, agreements=agreements)
-    users_stats = users.migrate_users(
+    users_mgr = Users(config, instances, fas, agreements=agreements)
+    users = users_mgr.pull_from_fas(
         users_start_at=users_start_at, restrict_users=restrict_users
     )
+    users_stats = users_mgr.push_to_ipa(users)
     stats.update(users_stats)
 
     stats.print()
