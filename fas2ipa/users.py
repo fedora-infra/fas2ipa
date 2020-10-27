@@ -1,6 +1,7 @@
 import string
 import re
 from collections import defaultdict
+from typing import Dict, List, Optional, Sequence
 
 import click
 import progressbar
@@ -19,7 +20,11 @@ class Users(ObjectManager):
         super().__init__(*args, **kwargs)
         self.agreements = agreements
 
-    def migrate_users(self, users_start_at=None, restrict_users=()):
+    def pull_from_fas(
+        self,
+        users_start_at: Optional[str] = None,
+        restrict_users: Optional[Sequence[str]] = None,
+    ) -> List[Dict]:
         if restrict_users:
             user_patterns = [
                 pattern
@@ -28,6 +33,7 @@ class Users(ObjectManager):
                 or pattern.replace("*", "\u0010ffff") >= users_start_at
             ]
         else:
+            restrict_users = ()
             alphabet = list(string.ascii_lowercase)
             if users_start_at:
                 start_index = alphabet.index(users_start_at[0].lower())
@@ -38,7 +44,7 @@ class Users(ObjectManager):
             else:
                 user_patterns = [pattern + "*" for pattern in alphabet]
 
-        stats = Stats()
+        matched_users = []
 
         for pattern in user_patterns:
             if "*" in pattern:
@@ -52,14 +58,19 @@ class Users(ObjectManager):
 
             people = result["unapproved_people"] + result["people"]
             if users_start_at:
-                users_per_pattern = [
+                matched_users.extend(
                     u for u in people if u.username >= users_start_at
-                ]
+                )
             else:
-                users_per_pattern = people
+                matched_users.extend(people)
 
-            users_stats = self._migrate_users(users_per_pattern)
-            stats.update(users_stats)
+        return matched_users
+
+    def push_to_ipa(self, users: List[Dict]) -> Stats:
+        stats = Stats()
+
+        users_stats = self._migrate_users(users)
+        stats.update(users_stats)
 
         return stats
 
