@@ -115,16 +115,20 @@ def cli(
     if config.get("agreement"):
         agreements.push_to_ipa()
 
-    if not skip_groups:
-        groups_mgr = Groups(config, instances, fas, agreements=agreements)
-        groups = groups_mgr.pull_from_fas()
-        groups_stats = groups_mgr.push_to_ipa(groups)
-        stats.update(groups_stats)
-
     users_mgr = Users(config, instances, fas, agreements=agreements)
+    groups_mgr = Groups(config, instances, fas, agreements=agreements)
+
+    if not skip_groups:
+        groups = groups_mgr.pull_from_fas()
+
     users = users_mgr.pull_from_fas(
         users_start_at=users_start_at, restrict_users=restrict_users
     )
+
+    if not skip_groups:
+        groups_stats = groups_mgr.push_to_ipa(groups)
+        stats.update(groups_stats)
+
     users_stats = users_mgr.push_to_ipa(users)
     stats.update(users_stats)
 
