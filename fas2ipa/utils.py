@@ -89,4 +89,4 @@ def save_data(data: dict, fpath: Union[str, pathlib.Path], force_overwrite: bool
             import yaml
             yaml.dump(data, fobj)
         else:
-            json.dump(data, fobj)
+            json.dump(data, fobj, indent=2)
