@@ -66,24 +66,24 @@ class FASWrapper:
 
 
 @click.command()
-@click.option("--skip-groups", is_flag=True, help="Skip group creation")
+@click.option("--skip-groups", is_flag=True, help="Skip group creation.")
 @click.option(
-    "--skip-user-add", is_flag=True, help="Don't add or update users",
+    "--skip-user-add", is_flag=True, help="Don't add or update users.",
 )
 @click.option(
-    "--skip-user-membership", is_flag=True, help="Don't add users to groups",
+    "--skip-user-membership", is_flag=True, help="Don't add users to groups.",
 )
 @click.option(
     "--skip-user-signature",
     is_flag=True,
-    help="Don't store users' signatures of agreements",
+    help="Don't store users' signatures of agreements.",
 )
-@click.option("--users-start-at", help="Start migrating users at that (partial) name")
+@click.option("--users-start-at", help="Start migrating users at that (partial) name.")
 @click.option(
     "--restrict-users",
     "-u",
     multiple=True,
-    help="Restrict users to supplied glob pattern(s)",
+    help="Restrict users to supplied glob pattern(s).",
 )
 def cli(
     skip_groups,
