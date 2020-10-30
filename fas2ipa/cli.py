@@ -65,7 +65,7 @@ class FASWrapper:
             return self.fas.send_request(url, *args, **kwargs)
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ("-h", "--help")})
 @click.option("--skip-groups", is_flag=True, help="Skip group creation.")
 @click.option(
     "--skip-user-add", is_flag=True, help="Don't add or update users.",
