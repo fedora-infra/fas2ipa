@@ -19,11 +19,7 @@ class Groups(ObjectManager):
             req_params={"search": self.config["groups"]["search"]},
             auth=True,
             timeout=240,
-        )
-        groups = [
-            g for g in groups["groups"]
-            if g["name"] not in self.config["groups"]["ignore"]
-        ]
+        )["groups"]
         groups.sort(key=lambda g: g["name"])
         click.echo(f"Got {len(groups)} groups!")
 
@@ -35,6 +31,11 @@ class Groups(ObjectManager):
         counter = 0
 
         # Start by creating groups
+        groups = [
+            g for g in groups
+            if g["name"] not in self.config["groups"].get("ignore", ())
+        ]
+
         name_max_length = max([len(g["name"]) for g in groups])
 
         click.echo("Pushing group information to IPA...")

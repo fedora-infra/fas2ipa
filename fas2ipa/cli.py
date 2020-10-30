@@ -2,6 +2,7 @@ import pathlib
 from urllib.parse import parse_qs, urlencode
 
 import click
+import munch
 import vcr
 from python_freeipa import ClientLegacy as Client
 from fedora.client.fas2 import AccountSystem
@@ -11,6 +12,7 @@ from .statistics import Stats
 from .users import Users
 from .groups import Groups
 from .agreements import Agreements
+from .utils import load_data, save_data
 
 
 class FASWrapper:
@@ -74,6 +76,7 @@ class FASWrapper:
     type=click.Path(file_okay=True),
     help="Write data into/read data from this file.",
 )
+@click.option("--force-overwrite", is_flag=True, help="Overwrite file if it exists.")
 @click.option("--skip-groups", is_flag=True, help="Skip group creation.")
 @click.option(
     "--skip-user-add", is_flag=True, help="Don't add or update users.",
@@ -97,6 +100,7 @@ def cli(
     pull,
     push,
     dataset_file,
+    force_overwrite,
     skip_groups,
     skip_user_add,
     skip_user_membership,
@@ -132,7 +136,17 @@ def cli(
     if dataset_file:
         dataset_file = pathlib.Path(dataset_file)
 
-    dataset = {}
+    if dataset_file and not pull:
+        dataset = load_data(dataset_file)
+    else:
+        dataset = {}
+
+    # If the dataset should be written later, bail out before overwriting an existing file (unless
+    # force_overwrite is set). This will be checked again later to avoid race conditions.
+    if dataset_file and pull and dataset_file.exists() and not force_overwrite:
+        raise click.ClickException(
+            f"Refusing to overwrite '{dataset_file}', use --force-overwrite to override."
+        )
 
     if pull:
         fas = FASWrapper(config)
@@ -166,6 +180,9 @@ def cli(
         dataset["users"] = users_mgr.pull_from_fas(
             users_start_at=users_start_at, restrict_users=restrict_users
         )
+
+        if dataset_file:
+            save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)
 
     if push and not skip_groups:
         groups_stats = groups_mgr.push_to_ipa(dataset["groups"])
