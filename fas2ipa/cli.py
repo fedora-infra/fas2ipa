@@ -6,6 +6,7 @@ import munch
 import vcr
 from python_freeipa import ClientLegacy as Client
 from fedora.client.fas2 import AccountSystem
+from requests.exceptions import ConnectionError
 
 from .config import get_config
 from .statistics import Stats
@@ -20,6 +21,7 @@ class FASWrapper:
     _remove_from_request_body = ("_csrf_token", "user_name", "password", "login")
 
     def __init__(self, config, inst_conf):
+        self.inst_conf = inst_conf
         self.fas = AccountSystem(
             inst_conf["url"],
             username=inst_conf["username"],
@@ -61,7 +63,15 @@ class FASWrapper:
 
     def send_request(self, url, *args, **kwargs):
         if not self._replay:
-            return self.fas.send_request(url, *args, **kwargs)
+            for attempt in range(self.inst_conf["retries"] + 1):
+                try:
+                    return self.fas.send_request(url, *args, **kwargs)
+                except ConnectionError:
+                    if attempt < self.inst_conf["retries"]:
+                        click.echo(f"Retry #{attempt + 1}")
+                    else:
+                        click.echo("Giving up.")
+                        raise
 
         cassette_path = self._vcr_get_cassette_path(url, *args, **kwargs)
         with self._recorder.use_cassette(cassette_path, match_on=["fas2ipa"]):
