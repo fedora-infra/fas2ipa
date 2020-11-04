@@ -20,6 +20,7 @@ prefix = ""
 
 [fas.fedora]
 url = "https://admin.fedoraproject.org/accounts"
+email_domain = "fedoraproject.org"
 # username = ""
 # password = ""
 
@@ -35,6 +36,7 @@ description_file = "FPCA.txt"
 
 [fas.centos]
 url = "https://accounts.centos.org"
+email_domain = "centos.org"
 # username = ""
 # password = ""
 
