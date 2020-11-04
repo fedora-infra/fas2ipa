@@ -81,6 +81,7 @@ class FASWrapper:
 @click.command(context_settings={"help_option_names": ("-h", "--help")})
 @click.option("--pull/--no-pull", default=None, help="Whether to pull data from FAS.")
 @click.option("--push/--no-push", default=None, help="Whether to push data to IPA.")
+@click.option("--check/--no-check", default=None, help="Whether to check for conflicts.")
 @click.option(
     "--dataset-file",
     type=click.Path(file_okay=True),
@@ -109,6 +110,7 @@ class FASWrapper:
 def cli(
     pull,
     push,
+    check,
     dataset_file,
     force_overwrite,
     skip_groups,
@@ -118,18 +120,22 @@ def cli(
     users_start_at,
     restrict_users,
 ):
-    if pull is None and push is not None:
-        pull = not push
-    elif pull is not None and push is None:
-        push = not pull
-    elif pull is None and push is None:
-        pull = True
-        push = True
+    all_ops = (push, pull, check)
+    if False in all_ops:
+        pull = pull is not False
+        push = push is not False
+        check = check is not False
+    elif True in all_ops:
+        push = bool(push)
+        pull = bool(pull)
+        check = bool(check)
+    else:
+        pull = push = check = True
 
-    if not push and not pull:
+    if all(x is None for x in all_ops):
         raise click.BadOptionUsage(
-            option_name=("--pull", "--push"),
-            message="Neither pulling nor pushing. Bailing out.",
+            option_name=("--pull", "--push", "--check"),
+            message="Neither pulling, pushing not checking. Bailing out.",
         )
     elif not dataset_file and (not pull or not push):
         raise click.BadOptionUsage(
@@ -190,8 +196,17 @@ def cli(
             users_start_at=users_start_at, restrict_users=restrict_users
         )
 
-        if dataset_file:
-            save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)
+    if check:
+        users_to_conflicts = users_mgr.find_user_conflicts(dataset["users"])
+        if users_to_conflicts:
+            dataset["users_to_conflicts"] = users_to_conflicts
+
+        groups_to_conflicts = groups_mgr.find_group_conflicts(dataset["groups"])
+        if groups_to_conflicts:
+            dataset["groups_to_conflicts"] = groups_to_conflicts
+
+    if pull and dataset_file:
+        save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)
 
     if push:
         if any(fas.get("agreement") for fas in config["fas"].values()):

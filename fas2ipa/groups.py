@@ -1,6 +1,7 @@
 import click
 import progressbar
 import python_freeipa
+from collections import defaultdict
 from typing import Dict, List
 
 from .status import Status, print_status
@@ -131,3 +132,33 @@ class Groups(ObjectManager):
             print(e)
             print(url, mailing_list, irc_string)
             return Status.FAILED
+
+    def find_group_conflicts(self, fas_groups: Dict[str, List[Dict]]) -> Dict[str, List[str]]:
+        """Compare groups from different FAS instances and flag conflicts."""
+        click.echo("Checking for conflicts between groups from different FAS instances")
+
+        groups_to_conflicts = {}
+
+        groupnames_to_fas = defaultdict(set)
+
+        for fas_name, group_objs in fas_groups.items():
+            for group_obj in group_objs:
+                groupnames_to_fas[group_obj["name"]].add(fas_name)
+
+        for group_name, fas_names in sorted(groupnames_to_fas.items(), key=lambda x: x[0]):
+            if len(fas_names) == 1:
+                continue
+
+            groups_to_conflicts[group_name] = group_conflicts = defaultdict(list)
+
+            conflicting_group_message = f"Conflicting group {group_name} in: {{}}".format(
+                ", ".join(fas_names)
+            )
+
+            click.echo(conflicting_group_message)
+            group_conflicts["group_name"].append(conflicting_group_message)
+
+        click.echo("Done checking group conflicts.")
+        click.echo(f"Found {len(groups_to_conflicts)} groups with conflicts.")
+
+        return groups_to_conflicts

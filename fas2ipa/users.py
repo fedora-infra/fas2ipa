@@ -440,3 +440,89 @@ class Users(ObjectManager):
                             )
                     finally:
                         bar.update(counter)
+
+    def find_user_conflicts(self, fas_users: Dict[str, List[Dict]]) -> Dict[str, List[str]]:
+        """Compare users from different FAS instances and flag conflicts."""
+        click.echo("Checking for conflicts between users from different FAS instances")
+
+        users_to_conflicts = {}
+
+        # email domains per FAS name and reverse
+        fas_email_domains = {
+            fas_name: fas_conf["email_domain"]
+            for fas_name, fas_conf in self.config["fas"].items()
+            if "email_domain" in fas_conf
+        }
+        email_domains_fas = {v: k for k, v in fas_email_domains.items()}
+
+        # FAS users by instance, by name
+        fas_users_by_name = {}
+
+        # Map duplicate usernames to fas instance names
+        usernames_to_check_for_fas = defaultdict(set)
+
+        for fas_name, user_objs in fas_users.items():
+            users_by_name = fas_users_by_name[fas_name] = {
+                user_obj["username"]: user_obj for user_obj in user_objs
+            }
+
+            for other_fas_name, other_user_objs in fas_users.items():
+                if other_fas_name in fas_users_by_name:
+                    continue
+
+                other_user_names = {uobj["username"] for uobj in other_user_objs}
+
+                usernames_to_check = set(users_by_name) & other_user_names
+                for name in usernames_to_check:
+                    usernames_to_check_for_fas[name] |= {fas_name, other_fas_name}
+
+        # Check users existing in different FAS instances
+        for username, fas_names in sorted(usernames_to_check_for_fas.items(), key=lambda x: x[0]):
+            user_conflicts = defaultdict(list)
+
+            fas_to_user_obj = {
+                fas_name: fas_users_by_name[fas_name][username] for fas_name in fas_names
+            }
+
+            email_addresses_to_fas = defaultdict(set)
+            for fas_name, user_obj in fas_to_user_obj.items():
+                email_addresses_to_fas[user_obj["email"]].add(fas_name)
+
+            for email_address, fas_names in email_addresses_to_fas.items():
+                mailbox, domain = email_address.rsplit("@", 1)
+                domain_fas_name = email_domains_fas.get(domain)
+                if mailbox == username and domain_fas_name:
+                    if domain_fas_name in fas_names:
+                        user_conflicts["circular_email"].append(
+                            f"Circular email address for {domain_fas_name}: {email_address}."
+                        )
+                        fas_names.remove(domain_fas_name)
+
+                    if fas_names:
+                        user_conflicts["email_pointing_to_other_fas"].append(
+                            f"Email address {email_address} for {{}} points to"
+                            f" {domain_fas_name}.".format(", ".join(fas_names))
+                        )
+                        fas_names.clear()
+
+            if len(list(e for e, fas_names in email_addresses_to_fas.items() if fas_names)) > 1:
+                user_conflicts["email_address_conflicts"].append(
+                    "Conflicting email addresses between FAS instances:\n"
+                    + "\n".join(
+                        f"\t{email_addr}: {', '.join(fas_names)}"
+                        for email_addr, fas_names in email_addresses_to_fas.items()
+                    )
+                )
+
+            if user_conflicts:
+                users_to_conflicts[username] = user_conflicts
+                click.echo(f"Conflicts for user {username}:")
+                for conflicts in user_conflicts.values():
+                    for msg in conflicts:
+                        for line in msg.split("\n"):
+                            click.echo(f"\t{line}")
+
+        click.echo("Done checking user conflicts.")
+        click.echo(f"Found {len(users_to_conflicts)} users with conflicts.")
+
+        return users_to_conflicts
