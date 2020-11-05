@@ -1,3 +1,4 @@
+import pathlib
 from urllib.parse import parse_qs, urlencode
 
 import click
@@ -66,6 +67,13 @@ class FASWrapper:
 
 
 @click.command(context_settings={"help_option_names": ("-h", "--help")})
+@click.option("--pull/--no-pull", default=None, help="Whether to pull data from FAS.")
+@click.option("--push/--no-push", default=None, help="Whether to push data to IPA.")
+@click.option(
+    "--dataset-file",
+    type=click.Path(file_okay=True),
+    help="Write data into/read data from this file.",
+)
 @click.option("--skip-groups", is_flag=True, help="Skip group creation.")
 @click.option(
     "--skip-user-add", is_flag=True, help="Don't add or update users.",
@@ -86,6 +94,9 @@ class FASWrapper:
     help="Restrict users to supplied glob pattern(s).",
 )
 def cli(
+    pull,
+    push,
+    dataset_file,
     skip_groups,
     skip_user_add,
     skip_user_membership,
@@ -93,43 +104,74 @@ def cli(
     users_start_at,
     restrict_users,
 ):
+    if pull is None and push is not None:
+        pull = not push
+    elif pull is not None and push is None:
+        push = not pull
+    elif pull is None and push is None:
+        pull = True
+        push = True
+
+    if not push and not pull:
+        raise click.BadOptionUsage(
+            option_name=("--pull", "--push"),
+            message="Neither pulling nor pushing. Bailing out.",
+        )
+    elif not dataset_file and (not pull or not push):
+        raise click.BadOptionUsage(
+            option_name="--dataset-file",
+            message="Missing option '--dataset-file' (unless both pulling and pushing)."
+        )
+
     config = get_config()
     config["skip_groups"] = skip_groups
     config["skip_user_add"] = skip_user_add
     config["skip_user_membership"] = skip_user_membership
     config["skip_user_signature"] = skip_user_signature
 
-    fas = FASWrapper(config)
-    click.echo("Logged into FAS")
+    if dataset_file:
+        dataset_file = pathlib.Path(dataset_file)
 
-    instances = []
-    for instance in config["ipa"]["instances"]:
-        ipa = Client(host=instance, verify_ssl=config["ipa"]["cert_path"])
-        ipa.login(config["ipa"]["username"], config["ipa"]["password"])
-        instances.append(ipa)
-    click.echo("Logged into IPA")
+    dataset = {}
+
+    if pull:
+        fas = FASWrapper(config)
+        click.echo("Logged into FAS")
+    else:
+        fas = None
+
+    if push:
+        ipa_instances = []
+        for instance in config["ipa"]["instances"]:
+            ipa = Client(host=instance, verify_ssl=config["ipa"]["cert_path"])
+            ipa.login(config["ipa"]["username"], config["ipa"]["password"])
+            ipa_instances.append(ipa)
+        click.echo("Logged into IPA")
+    else:
+        ipa_instances = None
 
     stats = Stats()
 
-    agreements = Agreements(config, instances, fas)
-    if config.get("agreement"):
+    agreements = Agreements(config, ipa_instances, fas)
+    if push and config.get("agreement"):
         agreements.push_to_ipa()
 
-    users_mgr = Users(config, instances, fas, agreements=agreements)
-    groups_mgr = Groups(config, instances, fas, agreements=agreements)
+    users_mgr = Users(config, ipa_instances, fas, agreements=agreements)
+    groups_mgr = Groups(config, ipa_instances, fas, agreements=agreements)
 
-    if not skip_groups:
-        groups = groups_mgr.pull_from_fas()
+    if pull:
+        if not skip_groups:
+            dataset["groups"] = groups_mgr.pull_from_fas()
 
-    users = users_mgr.pull_from_fas(
-        users_start_at=users_start_at, restrict_users=restrict_users
-    )
+        dataset["users"] = users_mgr.pull_from_fas(
+            users_start_at=users_start_at, restrict_users=restrict_users
+        )
 
-    if not skip_groups:
-        groups_stats = groups_mgr.push_to_ipa(groups)
+    if push and not skip_groups:
+        groups_stats = groups_mgr.push_to_ipa(dataset["groups"])
         stats.update(groups_stats)
 
-    users_stats = users_mgr.push_to_ipa(users)
-    stats.update(users_stats)
+        users_stats = users_mgr.push_to_ipa(dataset["users"])
+        stats.update(users_stats)
 
     stats.print()
