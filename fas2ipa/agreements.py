@@ -17,7 +17,7 @@ def find_requirements(groups, prereq_id):
 
 
 class Agreements(ObjectManager):
-    def create(self):
+    def push_to_ipa(self):
         click.echo("Creating Agreements")
         for agreement in self.config.get("agreement"):
             with open(agreement["description_file"], "r") as f:
@@ -63,12 +63,15 @@ class Agreements(ObjectManager):
     def record_group_requirements(self, groups):
         for agreement in self.config.get("agreement"):
 
-            toplevel_prereq = self.fas.send_request(
-                "/group/list",
-                req_params={"search": agreement["group_prerequisite"]},
-                auth=True,
-                timeout=240,
-            )["groups"][0]["id"]
+            for group in groups:
+                if group["name"] == agreement["group_prerequisite"]:
+                    toplevel_prereq = group["id"]
+                    break
+            else:
+                raise RuntimeError(
+                    f"Toplevel prerequisite {agreement['group_prerequisite']} for"
+                    f" agreement {agreement['name']!r} not found."
+                )
 
             agreement_required = find_requirements(groups, toplevel_prereq)
 
