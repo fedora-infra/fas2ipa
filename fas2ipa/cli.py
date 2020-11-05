@@ -113,7 +113,7 @@ def cli(
 
     agreements = Agreements(config, instances, fas)
     if config.get("agreement"):
-        agreements.create()
+        agreements.push_to_ipa()
 
     if not skip_groups:
         groups_mgr = Groups(config, instances, fas, agreements=agreements)
