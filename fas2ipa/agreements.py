@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 import click
 import python_freeipa
@@ -8,7 +8,7 @@ from .status import Status, print_status
 from .utils import ObjectManager
 
 
-def find_requirements(groups, prereq_id):
+def find_requirements(groups: Sequence[dict], prereq_id: int) -> List[str]:
     dependent_groups = []
     for group in groups:
         if group["prerequisite_id"] == prereq_id:
