@@ -1,6 +1,7 @@
 import string
 import re
 from collections import defaultdict
+from fnmatch import fnmatchcase
 from typing import Dict, List, Optional, Sequence
 
 import click
@@ -20,11 +21,11 @@ class Users(ObjectManager):
         super().__init__(*args, **kwargs)
         self.agreements = agreements
 
-    def pull_from_fas(
-        self,
-        users_start_at: Optional[str] = None,
-        restrict_users: Optional[Sequence[str]] = None,
-    ) -> Dict[str, List[Dict]]:
+    @staticmethod
+    def _make_user_patterns(
+        users_start_at: Optional[str],
+        restrict_users: Optional[Sequence[str]],
+    ) -> List[str]:
         if restrict_users:
             user_patterns = [
                 pattern
@@ -43,6 +44,15 @@ class Users(ObjectManager):
                 ]
             else:
                 user_patterns = [pattern + "*" for pattern in alphabet]
+
+        return user_patterns
+
+    def pull_from_fas(
+        self,
+        users_start_at: Optional[str] = None,
+        restrict_users: Optional[Sequence[str]] = None,
+    ) -> Dict[str, List[Dict]]:
+        user_patterns = self._make_user_patterns(users_start_at, restrict_users)
 
         fas_matched_users = {}
 
@@ -69,21 +79,20 @@ class Users(ObjectManager):
 
         return fas_matched_users
 
-    def push_to_ipa(self, users: List[Dict]) -> Stats:
+    def push_to_ipa(
+        self,
+        users: List[Dict],
+        users_start_at: Optional[str] = None,
+        restrict_users: Optional[Sequence[str]] = None,
+    ) -> Stats:
         stats = Stats()
 
-        users_stats = self._migrate_users(users)
+        users_stats = self._push_users(users, users_start_at, restrict_users)
         stats.update(users_stats)
 
         return stats
 
-    def _migrate_users(self, users):
-        print(f"{len(users)} found")
-        if not users:
-            return
-
-        users.sort(key=lambda u: u["username"])
-
+    def _push_users(self, fas_users, users_start_at, restrict_users):
         counter = 0
         added = 0
         edited = 0
@@ -92,46 +101,65 @@ class Users(ObjectManager):
         groups_to_unapproved_member_usernames = defaultdict(list)
         groups_to_sponsor_usernames = defaultdict(list)
         agreements_to_usernames = defaultdict(list)
-        max_length = max([len(u["username"]) for u in users])
 
-        for person in progressbar.progressbar(users, redirect_stdout=True):
-            counter += 1
-            self.check_reauth(counter)
-            click.echo(person["username"].ljust(max_length + 2), nl=False)
-            # Add user
-            status = self.migrate_user(person)
-            if status != Status.SKIPPED:
-                # Record membership
-                for groupname, membership in person["group_roles"].items():
-                    if groupname in self.config["groups"]["ignore"]:
-                        continue
-                    if membership["role_status"] == "approved":
-                        groups_to_member_usernames[groupname].append(person["username"])
-                        if membership["role_type"] in ["administrator", "sponsor"]:
-                            groups_to_sponsor_usernames[groupname].append(
+        user_patterns = self._make_user_patterns(users_start_at, restrict_users)
+
+        for fas_name, users in fas_users.items():
+            print(f"{fas_name}: {len(users)} found")
+            if not fas_users:
+                continue
+
+            fas_conf = self.config["fas"][fas_name]
+
+            users.sort(key=lambda u: u["username"])
+
+            max_length = max([len(u["username"]) for u in users])
+
+            for person in progressbar.progressbar(users, redirect_stdout=True):
+                username = person["username"]
+                if all(not fnmatchcase(username, pat) for pat in user_patterns):
+                    continue
+                counter += 1
+                self.check_reauth(counter)
+                click.echo(username.ljust(max_length + 2), nl=False)
+                # Add user
+                status = self.migrate_user(person)
+                if status != Status.SKIPPED:
+                    # Record membership
+                    for _groupname, membership in person["group_roles"].items():
+                        if (
+                            _groupname in fas_conf["groups"].get("ignore", ())
+                            or membership["group_id"] is None  # empty list of groups
+                        ):
+                            continue
+                        groupname = fas_conf["groups"].get("prefix", "") + _groupname
+                        if membership["role_status"] == "approved":
+                            groups_to_member_usernames[groupname].append(person["username"])
+                            if membership["role_type"] in ["administrator", "sponsor"]:
+                                groups_to_sponsor_usernames[groupname].append(
+                                    person["username"]
+                                )
+                        else:
+                            groups_to_unapproved_member_usernames[groupname].append(
                                 person["username"]
                             )
-                    else:
-                        groups_to_unapproved_member_usernames[groupname].append(
-                            person["username"]
-                        )
-                # Record agreement signatures
-                group_names = [g["name"] for g in person["memberships"]]
-                for agreement in self.config.get("agreement", ()):
-                    if set(agreement["signed_groups"]) & set(group_names):
-                        # intersection is not empty: the user signed it
-                        agreements_to_usernames[agreement["name"]].append(
-                            person["username"]
-                        )
+                    # Record agreement signatures
+                    group_names = [g["name"] for g in person["memberships"]]
+                    for agreement in self.config.get("agreement", ()):
+                        if set(agreement["signed_groups"]) & set(group_names):
+                            # intersection is not empty: the user signed it
+                            agreements_to_usernames[agreement["name"]].append(
+                                person["username"]
+                            )
 
-            # Status
-            print_status(status)
-            if status == Status.ADDED:
-                added += 1
-            elif status == Status.UPDATED:
-                edited += 1
-            elif status == Status.SKIPPED:
-                skipped += 1
+                # Status
+                print_status(status)
+                if status == Status.ADDED:
+                    added += 1
+                elif status == Status.UPDATED:
+                    edited += 1
+                elif status == Status.SKIPPED:
+                    skipped += 1
 
         self.agreements.record_user_signatures(agreements_to_usernames)
         self.add_users_to_groups(groups_to_member_usernames, "members")
@@ -334,14 +362,14 @@ class Users(ObjectManager):
                     try:
                         if category == "members":
                             self.ipa.group_add_member(
-                                self.config["groups"]["prefix"] + group,
+                                group,
                                 chunk,
                                 no_members=True,
                             )
                         elif category == "sponsors":
                             result = self.ipa._request(
                                 "group_add_member_manager",
-                                self.config["groups"]["prefix"] + group,
+                                group,
                                 {"user": chunk},
                             )
                             if result["failed"]["membermanager"]["user"]:

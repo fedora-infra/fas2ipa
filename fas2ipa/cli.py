@@ -217,7 +217,7 @@ def cli(
             groups_stats = groups_mgr.push_to_ipa(dataset["groups"])
             stats.update(groups_stats)
 
-        users_stats = users_mgr.push_to_ipa(dataset["users"])
+        users_stats = users_mgr.push_to_ipa(dataset["users"], users_start_at, restrict_users)
         stats.update(users_stats)
 
     stats.print()
