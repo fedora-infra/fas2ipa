@@ -358,7 +358,7 @@ class Users(ObjectManager):
                 for chunk in self.chunks(members):
                     counter += len(chunk)
                     self.check_reauth(counter)
-                    added = set(chunk[:])
+                    added = set(chunk)
                     try:
                         if category == "members":
                             self.ipa.group_add_member(
