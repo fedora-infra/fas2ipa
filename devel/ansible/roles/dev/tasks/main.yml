@@ -1,7 +1,7 @@
 ---
 - name: Install RPM packages
   dnf:
-      name: ['git', 'vim', 'poetry', 'python3-pip', 'freeipa-server']
+      name: ['git', 'vim', 'poetry', 'python3-pip', 'freeipa-server', 'gcc', 'python3-devel']
       state: present
 
 - name: install python deps with poetry
