@@ -522,33 +522,48 @@ class Users(ObjectManager):
                 if mailbox == username and domain_fas_name:
                     if domain_fas_name in fas_names:
                         user_conflicts["circular_email"].append(
-                            f"Circular email address for {domain_fas_name}: {email_address}."
+                            {"fas_name": domain_fas_name, "email_address": email_address}
                         )
                         fas_names.remove(domain_fas_name)
 
                     if fas_names:
-                        user_conflicts["email_pointing_to_other_fas"].append(
-                            f"Email address {email_address} for {{}} points to"
-                            f" {domain_fas_name}.".format(", ".join(fas_names))
-                        )
+                        user_conflicts["email_pointing_to_other_fas"].append({
+                            "tgt_fas_name": domain_fas_name,
+                            "email_address": email_address,
+                            "src_fas_names": set(fas_names),  # make a copy
+                        })
                         fas_names.clear()
 
             if len(list(e for e, fas_names in email_addresses_to_fas.items() if fas_names)) > 1:
-                user_conflicts["email_address_conflicts"].append(
-                    "Conflicting email addresses between FAS instances:\n"
-                    + "\n".join(
-                        f"\t{email_addr}: {', '.join(fas_names)}"
-                        for email_addr, fas_names in email_addresses_to_fas.items()
+                for email_address, fas_names in email_addresses_to_fas.items():
+                    user_conflicts["email_address_conflicts"].append(
+                        {"email_address": email_address, "fas_names": fas_names}
                     )
-                )
 
             if user_conflicts:
                 users_to_conflicts[username] = user_conflicts
                 click.echo(f"Conflicts for user {username}:")
-                for conflicts in user_conflicts.values():
-                    for msg in conflicts:
-                        for line in msg.split("\n"):
-                            click.echo(f"\t{line}")
+                for key, details in user_conflicts.items():
+                    if key == "circular_email":
+                        click.echo("\tCircular email address:")
+                        for item in details:
+                            click.echo(f"\t\t{item['fas_name']}: {item['email_address']}")
+                    elif key == "email_pointing_to_other_fas":
+                        click.echo("\tEmail address points to other FAS:")
+                        for item in details:
+                            click.echo(
+                                f"\t\tEmail address {item['email_address']} for"
+                                f" {', '.join(item['src_fas_names'])} points to"
+                                f" {item['tgt_fas_name']}."
+                            )
+                    elif key == "email_address_conflicts":
+                        click.echo("\tConflicting email addresses between FAS instances:")
+                        for item in details:
+                            click.echo(
+                                f"\t\t{item['email_address']}: {', '.join(item['fas_names'])}"
+                            )
+                    else:
+                        raise RuntimeError(f"Unknown conflicts key: {key}")
 
         click.echo("Done checking user conflicts.")
         click.echo(f"Found {len(users_to_conflicts)} users with conflicts.")

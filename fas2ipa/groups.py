@@ -151,12 +151,15 @@ class Groups(ObjectManager):
 
             groups_to_conflicts[group_name] = group_conflicts = defaultdict(list)
 
-            conflicting_group_message = f"Conflicting group {group_name} in: {{}}".format(
-                ", ".join(fas_names)
-            )
+            group_conflicts["same_group_name"] = {"fas_names": fas_names}
 
-            click.echo(conflicting_group_message)
-            group_conflicts["group_name"].append(conflicting_group_message)
+            if group_conflicts:
+                click.echo(f"Conflicts for group {group_name}:")
+                for key, details in group_conflicts.items():
+                    if key == "same_group_name":
+                        click.echo(f"\tSame group name between: {', '.join(details['fas_names'])}")
+                    else:
+                        raise RuntimeError(f"Unknown conflicts key: {key}")
 
         click.echo("Done checking group conflicts.")
         click.echo(f"Found {len(groups_to_conflicts)} groups with conflicts.")

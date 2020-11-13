@@ -1,6 +1,7 @@
 import json
 import pathlib
 import random
+from collections import defaultdict
 from typing import Union
 
 import click
@@ -87,6 +88,8 @@ def save_data(data: dict, fpath: Union[str, pathlib.Path], force_overwrite: bool
             toml.dump(data, fobj)
         elif suffix == ".yaml":
             import yaml
+            yaml.add_representer(set, yaml.representer.SafeRepresenter.represent_list)
+            yaml.add_representer(defaultdict, yaml.representer.SafeRepresenter.represent_dict)
             yaml.dump(data, fobj)
         else:
             json.dump(data, fobj, indent=2)

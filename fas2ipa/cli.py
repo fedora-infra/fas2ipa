@@ -87,6 +87,7 @@ class FASWrapper:
     type=click.Path(file_okay=True),
     help="Write data into/read data from this file.",
 )
+@click.option("--conflicts-file", default=None, help="Write found conflicts into this file.")
 @click.option("--force-overwrite", is_flag=True, help="Overwrite file if it exists.")
 @click.option("--skip-groups", is_flag=True, help="Skip group creation.")
 @click.option(
@@ -112,6 +113,7 @@ def cli(
     push,
     check,
     dataset_file,
+    conflicts_file,
     force_overwrite,
     skip_groups,
     skip_user_add,
@@ -198,12 +200,15 @@ def cli(
 
     if check:
         users_to_conflicts = users_mgr.find_user_conflicts(dataset["users"])
-        if users_to_conflicts:
-            dataset["users_to_conflicts"] = users_to_conflicts
-
         groups_to_conflicts = groups_mgr.find_group_conflicts(dataset["groups"])
-        if groups_to_conflicts:
-            dataset["groups_to_conflicts"] = groups_to_conflicts
+
+        if conflicts_file:
+            conflicts = {}
+            if users_to_conflicts:
+                conflicts["users"] = users_to_conflicts
+            if groups_to_conflicts:
+                conflicts["groups"] = groups_to_conflicts
+            save_data(conflicts, conflicts_file, force_overwrite=force_overwrite)
 
     if pull and dataset_file:
         save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)
