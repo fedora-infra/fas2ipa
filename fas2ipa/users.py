@@ -145,7 +145,7 @@ class Users(ObjectManager):
                             )
                     # Record agreement signatures
                     group_names = [g["name"] for g in person["memberships"]]
-                    for agreement in self.config.get("agreement", ()):
+                    for agreement in fas_conf.get("agreement", ()):
                         if set(agreement["signed_groups"]) & set(group_names):
                             # intersection is not empty: the user signed it
                             agreements_to_usernames[agreement["name"]].append(
