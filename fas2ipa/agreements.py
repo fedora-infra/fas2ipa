@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Sequence
 
 import click
-import python_freeipa
 import progressbar
+import python_freeipa
 
 from .status import Status, print_status
 from .utils import ObjectManager
@@ -19,20 +19,40 @@ def find_requirements(groups: Sequence[dict], prereq_id: int) -> List[str]:
 
 
 class Agreements(ObjectManager):
+    def _create_agreement(self, name, description):
+        # Create agreement
+        try:
+            self.ipa._request(
+                "fasagreement_add", name, {"description": description},
+            )
+        except python_freeipa.exceptions.DuplicateEntry as e:
+            print_status(Status.SKIPPED, str(e))
+        # Create the corresponding group
+        group_name = f"signed_{name}"
+        try:
+            self.ipa.group_add(group_name, description=f"Signers of the {name}")
+        except python_freeipa.exceptions.DuplicateEntry:
+            pass
+        # Add the automember rule
+        try:
+            self.ipa.automember_add(group_name, o_type="group")
+        except python_freeipa.exceptions.DuplicateEntry:
+            pass
+        else:
+            self.ipa.automember_add_condition(
+                group_name,
+                o_type="group",
+                o_key="memberof",
+                o_automemberinclusiveregex=f"^cn={name},cn=fasagreements,",
+            )
+
     def push_to_ipa(self):
         click.echo("Creating Agreements")
         for fas_name, fas_config in self.config["fas"].items():
             for agreement in fas_config.get("agreement", ()):
                 with open(agreement["description_file"], "r") as f:
                     agreement_description = f.read()
-                try:
-                    self.ipa._request(
-                        "fasagreement_add",
-                        agreement["name"],
-                        {"description": agreement_description},
-                    )
-                except python_freeipa.exceptions.DuplicateEntry as e:
-                    print_status(Status.SKIPPED, str(e))
+                self._create_agreement(agreement["name"], agreement_description)
 
     def record_user_signatures(self, agreements_to_usernames: Dict[str, List[str]]):
         if self.config["skip_user_signature"]:
@@ -77,7 +97,9 @@ class Agreements(ObjectManager):
                         f" agreement {agreement['name']!r} not found."
                     )
 
-                agreement_required = find_requirements(groups[fas_name], toplevel_prereq)
+                agreement_required = find_requirements(
+                    groups[fas_name], toplevel_prereq
+                )
 
                 for dep_name in progressbar.progressbar(
                     agreement_required, redirect_stdout=True
