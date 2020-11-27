@@ -19,7 +19,7 @@ def find_requirements(groups: Sequence[dict], prereq_id: int) -> List[str]:
 
 
 class Agreements(ObjectManager):
-    def _create_agreement(self, name, description):
+    def _create_agreement(self, name, description, group_name):
         # Create agreement
         try:
             self.ipa._request(
@@ -28,7 +28,6 @@ class Agreements(ObjectManager):
         except python_freeipa.exceptions.DuplicateEntry as e:
             print_status(Status.SKIPPED, str(e))
         # Create the corresponding group
-        group_name = f"signed_{name}"
         try:
             self.ipa.group_add(group_name, description=f"Signers of the {name}")
         except python_freeipa.exceptions.DuplicateEntry:
@@ -52,7 +51,8 @@ class Agreements(ObjectManager):
             for agreement in fas_config.get("agreement", ()):
                 with open(agreement["description_file"], "r") as f:
                     agreement_description = f.read()
-                self._create_agreement(agreement["name"], agreement_description)
+                group_name = agreement["signer_group"]
+                self._create_agreement(agreement["name"], agreement_description, group_name)
 
     def record_user_signatures(self, agreements_to_usernames: Dict[str, List[str]]):
         if self.config["skip_user_signature"]:

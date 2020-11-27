@@ -33,6 +33,7 @@ name = "Fedora Project Contributor Agreement"
 group_prerequisite = "cla_done"
 signed_groups = ["cla_fpca", "cla_done"]
 description_file = "FPCA.txt"
+signer_group = "signed_fpca"
 
 [fas.centos]
 url = "https://accounts.centos.org"
