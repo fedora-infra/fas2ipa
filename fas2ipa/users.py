@@ -211,6 +211,7 @@ class Users(ObjectManager):
             return val
 
     def migrate_user(self, person):
+        person_orig = person.copy()
         if self.config["skip_user_add"]:
             return Status.SKIPPED
         if self.config["users"]["skip_spam"] and person.get("status") == "spamcheck_denied":
@@ -329,7 +330,7 @@ class Users(ObjectManager):
             self.ipa.login(
                 self.config["ipa"]["username"], self.config["ipa"]["password"]
             )
-            return self.migrate_user(person)
+            return self.migrate_user(person_orig)
         except python_freeipa.exceptions.FreeIPAError as e:
             if e.message != "no modifications to be performed":
                 print(e)
