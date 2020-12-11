@@ -41,7 +41,14 @@ class Agreements(ObjectManager):
             pass
         else:
             self.ipa._request(
-                "automember_add_condition", group_name, {"type": "group", "key": "memberof", "automemberinclusiveregex": f"^cn={name},cn=fasagreements,"}
+                "automember_add_condition",
+                group_name,
+                {
+                    "type": "group",
+                    "key": "memberof",
+                    "automemberinclusiveregex": f"^cn={name},cn=fasagreements,",
+                },
+            )
 
     def push_to_ipa(self):
         click.echo("Creating Agreements")
