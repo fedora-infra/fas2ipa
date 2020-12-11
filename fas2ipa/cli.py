@@ -139,7 +139,7 @@ def cli(
     if all(x is None for x in all_ops):
         raise click.BadOptionUsage(
             option_name=("--pull", "--push", "--check"),
-            message="Neither pulling, pushing not checking. Bailing out.",
+            message="Neither pulling, pushing nor checking. Bailing out.",
         )
     elif not dataset_file and (not pull or not push):
         raise click.BadOptionUsage(
