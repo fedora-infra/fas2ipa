@@ -34,16 +34,14 @@ class Agreements(ObjectManager):
             pass
         # Add the automember rule
         try:
-            self.ipa.automember_add(group_name, o_type="group")
+            self.ipa._request(
+                "automember_add", group_name, {"type": "group"},
+            )
         except python_freeipa.exceptions.DuplicateEntry:
             pass
         else:
-            self.ipa.automember_add_condition(
-                group_name,
-                o_type="group",
-                o_key="memberof",
-                o_automemberinclusiveregex=f"^cn={name},cn=fasagreements,",
-            )
+            self.ipa._request(
+                "automember_add_condition", group_name, {"type": "group", "key": "memberof", "automemberinclusiveregex": f"^cn={name},cn=fasagreements,"}
 
     def push_to_ipa(self):
         click.echo("Creating Agreements")
