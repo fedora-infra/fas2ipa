@@ -134,6 +134,8 @@ def cli(
     else:
         pull = push = check = True
 
+    all_ops = (push, pull, check)
+
     if all(x is None for x in all_ops):
         raise click.BadOptionUsage(
             option_name=("--pull", "--push", "--check"),
