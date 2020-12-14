@@ -122,29 +122,45 @@ def cli(
     users_start_at,
     restrict_users,
 ):
-    all_ops = (push, pull, check)
-    if False in all_ops:
+    _orig_check = check
+
+    if check is False:
+        if conflicts_file:
+            raise click.BadOptionUsage(
+                option_name="--check",
+                message="--no-check and --conflicts-file can't be combined",
+            )
+    elif check is True:
+        if not (pull or push or conflicts_file or dataset_file):
+            raise click.BadOptionUsage(
+                option_name="--check",
+                message=(
+                    "--check without --pull or --push needs --conflicts-file or"
+                    " --dataset-file"
+                ),
+            )
+    else:
+        check = True
+
+    if pull is None and push is None:
+        if not check:
+            raise click.BadOptionUsage(
+                option_name=("--pull", "--push", "--check"),
+                message="Neither pulling, pushing nor, checking. Bailing out.",
+            )
+        if _orig_check is None:
+            pull = push = True
+    elif False in (pull, push):
         pull = pull is not False
         push = push is not False
-        check = check is not False
-    elif True in all_ops:
+    elif True in (pull, push):
         push = bool(push)
         pull = bool(pull)
-        check = bool(check)
-    else:
-        pull = push = check = True
 
-    all_ops = (push, pull, check)
-
-    if all(x is None for x in all_ops):
-        raise click.BadOptionUsage(
-            option_name=("--pull", "--push", "--check"),
-            message="Neither pulling, pushing nor checking. Bailing out.",
-        )
-    elif not dataset_file and (not pull or not push):
+    if not dataset_file and pull != push:
         raise click.BadOptionUsage(
             option_name="--dataset-file",
-            message="Missing option '--dataset-file' (unless both pulling and pushing)."
+            message="Pulling without pushing or vice versa needs --dataset-file",
         )
 
     config = get_config()
