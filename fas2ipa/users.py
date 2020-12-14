@@ -543,30 +543,7 @@ class Users(ObjectManager):
 
             if user_conflicts:
                 users_to_conflicts[username] = user_conflicts
-                click.echo(f"Conflicts for user {username}:")
-                for key, details in user_conflicts.items():
-                    if key == "circular_email":
-                        click.echo("\tCircular email address:")
-                        for item in details:
-                            click.echo(f"\t\t{item['fas_name']}: {item['email_address']}")
-                    elif key == "email_pointing_to_other_fas":
-                        click.echo("\tEmail address points to other FAS:")
-                        for item in details:
-                            click.echo(
-                                f"\t\tEmail address {item['email_address']} for"
-                                f" {', '.join(item['src_fas_names'])} points to"
-                                f" {item['tgt_fas_name']}."
-                            )
-                    elif key == "email_address_conflicts":
-                        click.echo("\tConflicting email addresses between FAS instances:")
-                        for item in details:
-                            click.echo(
-                                f"\t\t{item['email_address']}: {', '.join(item['fas_names'])}"
-                            )
-                    else:
-                        raise RuntimeError(f"Unknown conflicts key: {key}")
 
         click.echo("Done checking user conflicts.")
-        click.echo(f"Found {len(users_to_conflicts)} users with conflicts.")
 
         return users_to_conflicts
