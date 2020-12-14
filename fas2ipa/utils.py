@@ -93,3 +93,61 @@ def save_data(data: dict, fpath: Union[str, pathlib.Path], force_overwrite: bool
             yaml.dump(data, fobj)
         else:
             json.dump(data, fobj, indent=2)
+
+
+def report_conflicts(conflicts):
+    if not conflicts and not any((conflicts.get("users"), conflicts.get("groups"))):
+        click.echo("No users or groups with conflicts found.")
+
+    users_to_conflicts = conflicts.get("users")
+
+    if users_to_conflicts:
+        click.echo("User conflicts")
+        click.echo("==============")
+
+        for user_name, user_conflicts in users_to_conflicts.items():
+            click.echo(f"Conflicts for user '{user_name}':")
+
+            for key, details in user_conflicts.items():
+                if key == "circular_email":
+                    click.echo("\tCircular email address:")
+                    for item in details:
+                        click.echo(f"\t\t{item['fas_name']}: {item['email_address']}")
+                elif key == "email_pointing_to_other_fas":
+                    click.echo("\tEmail address points to other FAS:")
+                    for item in details:
+                        click.echo(
+                            f"\t\tEmail address {item['email_address']} for"
+                            f" {', '.join(item['src_fas_names'])} points to"
+                            f" {item['tgt_fas_name']}."
+                        )
+                elif key == "email_address_conflicts":
+                    click.echo("\tConflicting email addresses between FAS instances:")
+                    for item in details:
+                        click.echo(
+                            f"\t\t{item['email_address']}:"
+                            f" {', '.join(item['fas_names'])}"
+                        )
+                else:
+                    raise RuntimeError(f"Unknown conflicts key: {key}")
+
+        click.echo(f"Found {len(users_to_conflicts)} users with conflicts.")
+
+    groups_to_conflicts = conflicts.get("groups")
+
+    if groups_to_conflicts:
+        click.echo("Group conflicts")
+        click.echo("===============")
+
+        for group_name, group_conflicts in groups_to_conflicts.items():
+            click.echo(f"Conflicts for group '{group_name}':")
+
+            for key, details in group_conflicts.items():
+                if key == "same_group_name":
+                    click.echo(
+                        f"\tSame group name between: {', '.join(details['fas_names'])}"
+                    )
+                else:
+                    raise RuntimeError(f"Unknown conflicts key: {key}")
+
+        click.echo(f"Found {len(groups_to_conflicts)} groups with conflicts.")

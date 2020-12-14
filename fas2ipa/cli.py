@@ -13,7 +13,7 @@ from .statistics import Stats
 from .users import Users
 from .groups import Groups
 from .agreements import Agreements
-from .utils import load_data, save_data
+from .utils import load_data, report_conflicts, save_data
 
 
 class FASWrapper:
@@ -217,16 +217,21 @@ def cli(
         )
 
     if check:
-        users_to_conflicts = users_mgr.find_user_conflicts(dataset["users"])
-        groups_to_conflicts = groups_mgr.find_group_conflicts(dataset["groups"])
+        if dataset_file:
+            users_to_conflicts = users_mgr.find_user_conflicts(dataset["users"])
+            groups_to_conflicts = groups_mgr.find_group_conflicts(dataset["groups"])
 
-        if conflicts_file:
             conflicts = {}
             if users_to_conflicts:
                 conflicts["users"] = users_to_conflicts
             if groups_to_conflicts:
                 conflicts["groups"] = groups_to_conflicts
-            save_data(conflicts, conflicts_file, force_overwrite=force_overwrite)
+
+            if conflicts_file:
+                save_data(conflicts, conflicts_file, force_overwrite=force_overwrite)
+        else:
+            conflicts = load_data(conflicts_file)
+        report_conflicts(conflicts)
 
     if pull and dataset_file:
         save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)

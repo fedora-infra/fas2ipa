@@ -153,14 +153,6 @@ class Groups(ObjectManager):
 
             group_conflicts["same_group_name"] = {"fas_names": fas_names}
 
-            if group_conflicts:
-                click.echo(f"Conflicts for group {group_name}:")
-                for key, details in group_conflicts.items():
-                    if key == "same_group_name":
-                        click.echo(f"\tSame group name between: {', '.join(details['fas_names'])}")
-                    else:
-                        raise RuntimeError(f"Unknown conflicts key: {key}")
-
         click.echo("Done checking group conflicts.")
         click.echo(f"Found {len(groups_to_conflicts)} groups with conflicts.")
 
