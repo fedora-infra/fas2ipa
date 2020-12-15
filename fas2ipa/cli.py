@@ -169,20 +169,30 @@ def cli(
     config["skip_user_membership"] = skip_user_membership
     config["skip_user_signature"] = skip_user_signature
 
+    # If dataset or conlicts files should be written later, bail out before overwriting
+    # an existing file (unless force_overwrite is set). This will be checked again later
+    # to avoid race conditions.
+
     if dataset_file:
         dataset_file = pathlib.Path(dataset_file)
+
+        if pull and dataset_file.exists() and not force_overwrite:
+            raise click.ClickException(
+                f"Refusing to overwrite '{dataset_file}', use --force-overwrite to override."
+            )
+
+    if conflicts_file:
+        conflicts_file = pathlib.Path(conflicts_file)
+
+        if check and dataset_file and conflicts_file.exists() and not force_overwrite:
+            raise click.ClickException(
+                f"Refusing to overwrite '{conflicts_file}', use --force-overwrite to override."
+            )
 
     if dataset_file and not pull:
         dataset = load_data(dataset_file)
     else:
         dataset = {}
-
-    # If the dataset should be written later, bail out before overwriting an existing file (unless
-    # force_overwrite is set). This will be checked again later to avoid race conditions.
-    if dataset_file and pull and dataset_file.exists() and not force_overwrite:
-        raise click.ClickException(
-            f"Refusing to overwrite '{dataset_file}', use --force-overwrite to override."
-        )
 
     fas_instances = {}
 
