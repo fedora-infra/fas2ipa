@@ -64,6 +64,15 @@ def load_data(fpath: Union[str, pathlib.Path]) -> dict:
     return data
 
 
+class CustomJSONEncoder(json.JSONEncoder):
+    """JSON encoder which serializes sets as lists"""
+
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return super().default(obj)
+
+
 def save_data(data: dict, fpath: Union[str, pathlib.Path], force_overwrite: bool = False):
     """Save a dictionary object to a JSON, YAML, or TOML file.
 
@@ -92,7 +101,7 @@ def save_data(data: dict, fpath: Union[str, pathlib.Path], force_overwrite: bool
             yaml.add_representer(defaultdict, yaml.representer.SafeRepresenter.represent_dict)
             yaml.dump(data, fobj)
         else:
-            json.dump(data, fobj, indent=2)
+            json.dump(data, fobj, indent=2, cls=CustomJSONEncoder)
 
 
 def report_conflicts(conflicts):
