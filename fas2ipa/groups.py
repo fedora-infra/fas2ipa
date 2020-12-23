@@ -2,7 +2,7 @@ import click
 import progressbar
 import python_freeipa
 from collections import defaultdict
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from .status import Status, print_status
 from .utils import ObjectManager
@@ -32,10 +32,18 @@ class Groups(ObjectManager):
 
         return fas_groups
 
-    def push_to_ipa(self, groups: Dict[str, List[Dict]]) -> dict:
+    def push_to_ipa(
+        self,
+        groups: Dict[str, List[Dict]],
+        conflicts: Dict[str, List[Dict[str, Any]]],
+    ) -> dict:
         added = 0
         edited = 0
         counter = 0
+
+        if not conflicts:
+            conflicts = {}
+        skip_conflicts = set(self.config["groups"].get("skip_conflicts", ()))
 
         for fas_name, fas_groups in groups.items():
             click.echo(f"Pushing {fas_name} group information to IPA...")
@@ -52,6 +60,17 @@ class Groups(ObjectManager):
 
             for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
                 counter += 1
+
+                group_conflicts = set(conflicts.get(group["name"], ()))
+                group_skip_conflicts = skip_conflicts & group_conflicts
+                if group_skip_conflicts:
+                    print_status(
+                        Status.FAILED,
+                        f"[{fas_name}: Skipping group '{group['name']}' because of conflicts:"
+                        f" {', '.join(group_skip_conflicts)}",
+                    )
+                    continue
+
                 self.check_reauth(counter)
                 click.echo(group["name"].ljust(name_max_length + 2), nl=False)
                 status = self._write_group_to_ipa(fas_name, group)

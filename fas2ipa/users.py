@@ -2,7 +2,7 @@ import string
 import re
 from collections import defaultdict
 from fnmatch import fnmatchcase
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import click
 import progressbar
@@ -84,15 +84,16 @@ class Users(ObjectManager):
         users: List[Dict],
         users_start_at: Optional[str] = None,
         restrict_users: Optional[Sequence[str]] = None,
+        conflicts: Optional[Dict[str, Sequence[Dict[str, Any]]]] = None,
     ) -> Stats:
         stats = Stats()
 
-        users_stats = self._push_users(users, users_start_at, restrict_users)
+        users_stats = self._push_users(users, users_start_at, restrict_users, conflicts)
         stats.update(users_stats)
 
         return stats
 
-    def _push_users(self, fas_users, users_start_at, restrict_users):
+    def _push_users(self, fas_users, users_start_at, restrict_users, conflicts):
         counter = 0
         added = 0
         edited = 0
@@ -103,6 +104,9 @@ class Users(ObjectManager):
         agreements_to_usernames = defaultdict(list)
 
         user_patterns = self._make_user_patterns(users_start_at, restrict_users)
+        if not conflicts:
+            conflicts = {}
+        skip_conflicts = set(self.config["users"].get("skip_conflicts", ()))
 
         for fas_name, users in fas_users.items():
             print(f"{fas_name}: {len(users)} found")
@@ -119,6 +123,18 @@ class Users(ObjectManager):
                 username = person["username"]
                 if all(not fnmatchcase(username, pat) for pat in user_patterns):
                     continue
+
+                user_conflicts = set(conflicts.get(username, ()))
+                user_skip_conflicts = skip_conflicts & user_conflicts
+                if user_skip_conflicts:
+                    print_status(
+                        Status.FAILED,
+                        f"[{fas_name}] Skipping user '{username}' because of conflicts:"
+                        f" {', '.join(user_skip_conflicts)}",
+                    )
+                    skipped += 1
+                    continue
+
                 counter += 1
                 self.check_reauth(counter)
                 click.echo(username.ljust(max_length + 2), nl=False)
