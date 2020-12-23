@@ -11,6 +11,8 @@ retries = 2
 
 [users]
 skip_spam = true
+# Users with these conflicts won't get added or updated in IPA
+skip_conflicts = ["email_address_conflicts"]
 
 [groups]
 # * for all

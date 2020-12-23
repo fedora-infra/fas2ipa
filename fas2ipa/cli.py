@@ -242,10 +242,12 @@ def cli(
             agreements_mgr.push_to_ipa()
 
         if not skip_groups:
-            groups_stats = groups_mgr.push_to_ipa(dataset["groups"])
+            groups_stats = groups_mgr.push_to_ipa(dataset["groups"], conflicts["groups"])
             stats.update(groups_stats)
 
-        users_stats = users_mgr.push_to_ipa(dataset["users"], users_start_at, restrict_users)
+        users_stats = users_mgr.push_to_ipa(
+            dataset["users"], users_start_at, restrict_users, conflicts["users"]
+        )
         stats.update(users_stats)
 
     stats.print()
