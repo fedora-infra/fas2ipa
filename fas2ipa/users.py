@@ -337,6 +337,13 @@ class Users(ObjectManager):
                 return Status.ADDED
             except python_freeipa.exceptions.FreeIPAError as e:
                 if e.message == f'user with name "{username}" already exists':
+                    # Don't overwrite first/last/full name with unset placeholders
+                    if user_args["first_name"] == "<first-name-unset>":
+                        user_args["first_name"] = None
+                    if user_args["last_name"] == "<last-name-unset>":
+                        user_args["last_name"] = None
+                    if user_args["full_name"] == "<first-name-unset> <last-name-unset>":
+                        user_args["full_name"] = None
                     # Update them instead
                     self.ipa.user_mod(username, **user_args)
                     return Status.UPDATED
