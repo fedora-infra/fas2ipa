@@ -339,11 +339,18 @@ class Users(ObjectManager):
                 if e.message == f'user with name "{username}" already exists':
                     # Don't overwrite first/last/full name with unset placeholders
                     if user_args["first_name"] == "<first-name-unset>":
-                        user_args["first_name"] = None
+                        del user_args["first_name"]
                     if user_args["last_name"] == "<last-name-unset>":
-                        user_args["last_name"] = None
+                        del user_args["last_name"]
                     if user_args["full_name"] == "<first-name-unset> <last-name-unset>":
-                        user_args["full_name"] = None
+                        del user_args["full_name"]
+
+                    # Avoid overwriting already set fields
+                    user_args = {
+                        k: v for k, v in user_args.items()
+                        if v is not None and (not isinstance(v, str) or v.strip())
+                    }
+
                     # Update them instead
                     self.ipa.user_mod(username, **user_args)
                     return Status.UPDATED
