@@ -110,7 +110,7 @@ class Users(ObjectManager):
 
         for fas_name, users in fas_users.items():
             print(f"{fas_name}: {len(users)} found")
-            if not fas_users:
+            if not users:
                 continue
 
             fas_conf = self.config["fas"][fas_name]
