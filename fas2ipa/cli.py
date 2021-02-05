@@ -226,6 +226,7 @@ def cli(
             users_start_at=users_start_at, restrict_users=restrict_users
         )
 
+    conflicts = {"users": [], "groups": []}
     if check:
         if dataset_file:
             users_to_conflicts = users_mgr.find_user_conflicts(dataset["users"])
