@@ -1,3 +1,4 @@
+import os
 import pathlib
 from urllib.parse import parse_qs, urlencode
 
@@ -240,7 +241,7 @@ def cli(
 
             if conflicts_file:
                 save_data(conflicts, conflicts_file, force_overwrite=force_overwrite)
-        else:
+        elif conflicts_file and os.path.exists(conflicts_file):
             conflicts = load_data(conflicts_file)
         report_conflicts(conflicts)
 
