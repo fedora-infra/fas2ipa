@@ -233,6 +233,8 @@ class Users(ObjectManager):
             return Status.SKIPPED
         if self.config["users"]["skip_spam"] and person.get("status") == "spamcheck_denied":
             return Status.SKIPPED
+        if self.config["users"]["skip_disabled"] and person.get("status") != "active":
+            return Status.SKIPPED
 
         # Don't modify the original object, and remove all key/value pairs that should
         # be ignored

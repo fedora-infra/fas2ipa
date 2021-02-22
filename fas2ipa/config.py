@@ -13,7 +13,7 @@ DEFAULT_CONFIG = {
     # Record and replay requests to FAS (for testing)
     "replay": False,
     # Users configuration
-    "users": {"skip_spam": True},
+    "users": {"skip_spam": True, "skip_disabled": False},
     # Groups configuration
     "groups": {
         # * for all
