@@ -23,8 +23,7 @@ class Users(ObjectManager):
 
     @staticmethod
     def _make_user_patterns(
-        users_start_at: Optional[str],
-        restrict_users: Optional[Sequence[str]],
+        users_start_at: Optional[str], restrict_users: Optional[Sequence[str]],
     ) -> List[str]:
         if restrict_users:
             user_patterns = [
@@ -66,7 +65,10 @@ class Users(ObjectManager):
                     click.echo(f"[{fas_name}] finding user {pattern!r}")
 
                 result = fas_inst.send_request(
-                    "/user/list", req_params={"search": pattern}, auth=True, timeout=240,
+                    "/user/list",
+                    req_params={"search": pattern},
+                    auth=True,
+                    timeout=240,
                 )
 
                 people = result["unapproved_people"] + result["people"]
@@ -150,7 +152,9 @@ class Users(ObjectManager):
                             continue
                         groupname = fas_conf["groups"].get("prefix", "") + _groupname
                         if membership["role_status"] == "approved":
-                            groups_to_member_usernames[groupname].append(person["username"])
+                            groups_to_member_usernames[groupname].append(
+                                person["username"]
+                            )
                             if membership["role_type"] in ["administrator", "sponsor"]:
                                 groups_to_sponsor_usernames[groupname].append(
                                     person["username"]
@@ -231,7 +235,10 @@ class Users(ObjectManager):
         person = person.copy()
         if self.config["skip_user_add"]:
             return Status.SKIPPED
-        if self.config["users"]["skip_spam"] and person.get("status") == "spamcheck_denied":
+        if (
+            self.config["users"]["skip_spam"]
+            and person.get("status") == "spamcheck_denied"
+        ):
             return Status.SKIPPED
         if self.config["users"]["skip_disabled"] and person.get("status") != "active":
             return Status.SKIPPED
@@ -349,7 +356,8 @@ class Users(ObjectManager):
 
                     # Avoid overwriting already set fields
                     user_args = {
-                        k: v for k, v in user_args.items()
+                        k: v
+                        for k, v in user_args.items()
                         if v is not None and (not isinstance(v, str) or v.strip())
                     }
 
@@ -396,15 +404,11 @@ class Users(ObjectManager):
                     try:
                         if category == "members":
                             self.ipa.group_add_member(
-                                group,
-                                chunk,
-                                no_members=True,
+                                group, chunk, no_members=True,
                             )
                         elif category == "sponsors":
                             result = self.ipa._request(
-                                "group_add_member_manager",
-                                group,
-                                {"user": chunk},
+                                "group_add_member_manager", group, {"user": chunk},
                             )
                             if result["failed"]["membermanager"]["user"]:
                                 raise python_freeipa.exceptions.ValidationError(
@@ -503,7 +507,9 @@ class Users(ObjectManager):
                     finally:
                         bar.update(counter)
 
-    def find_user_conflicts(self, fas_users: Dict[str, List[Dict]]) -> Dict[str, List[str]]:
+    def find_user_conflicts(
+        self, fas_users: Dict[str, List[Dict]]
+    ) -> Dict[str, List[str]]:
         """Compare users from different FAS instances and flag conflicts."""
         click.echo("Checking for conflicts between users from different FAS instances")
 
@@ -539,11 +545,14 @@ class Users(ObjectManager):
                     usernames_to_check_for_fas[name] |= {fas_name, other_fas_name}
 
         # Check users existing in different FAS instances
-        for username, fas_names in sorted(usernames_to_check_for_fas.items(), key=lambda x: x[0]):
+        for username, fas_names in sorted(
+            usernames_to_check_for_fas.items(), key=lambda x: x[0]
+        ):
             user_conflicts = defaultdict(list)
 
             fas_to_user_obj = {
-                fas_name: fas_users_by_name[fas_name][username] for fas_name in fas_names
+                fas_name: fas_users_by_name[fas_name][username]
+                for fas_name in fas_names
             }
 
             email_addresses_to_fas = defaultdict(set)
@@ -556,19 +565,33 @@ class Users(ObjectManager):
                 if mailbox == username and domain_fas_name:
                     if domain_fas_name in fas_names:
                         user_conflicts["circular_email"].append(
-                            {"fas_name": domain_fas_name, "email_address": email_address}
+                            {
+                                "fas_name": domain_fas_name,
+                                "email_address": email_address,
+                            }
                         )
                         fas_names.remove(domain_fas_name)
 
                     if fas_names:
-                        user_conflicts["email_pointing_to_other_fas"].append({
-                            "tgt_fas_name": domain_fas_name,
-                            "email_address": email_address,
-                            "src_fas_names": set(fas_names),  # make a copy
-                        })
+                        user_conflicts["email_pointing_to_other_fas"].append(
+                            {
+                                "tgt_fas_name": domain_fas_name,
+                                "email_address": email_address,
+                                "src_fas_names": set(fas_names),  # make a copy
+                            }
+                        )
                         fas_names.clear()
 
-            if len(list(e for e, fas_names in email_addresses_to_fas.items() if fas_names)) > 1:
+            if (
+                len(
+                    list(
+                        e
+                        for e, fas_names in email_addresses_to_fas.items()
+                        if fas_names
+                    )
+                )
+                > 1
+            ):
                 for email_address, fas_names in email_addresses_to_fas.items():
                     user_conflicts["email_address_conflicts"].append(
                         {"email_address": email_address, "fas_names": fas_names}

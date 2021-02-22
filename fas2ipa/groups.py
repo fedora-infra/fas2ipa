@@ -33,9 +33,7 @@ class Groups(ObjectManager):
         return fas_groups
 
     def push_to_ipa(
-        self,
-        groups: Dict[str, List[Dict]],
-        conflicts: Dict[str, List[Dict[str, Any]]],
+        self, groups: Dict[str, List[Dict]], conflicts: Dict[str, List[Dict[str, Any]]],
     ) -> dict:
         added = 0
         edited = 0
@@ -52,7 +50,8 @@ class Groups(ObjectManager):
 
             # Start by creating groups
             fas_groups = [
-                g for g in fas_groups
+                g
+                for g in fas_groups
                 if g["name"] not in fas_conf["groups"].get("ignore", ())
             ]
 
@@ -91,7 +90,10 @@ class Groups(ObjectManager):
         return dict(groups_added=added, groups_edited=edited, groups_counter=counter,)
 
     def _write_group_to_ipa(self, fas_name: str, group: dict):
-        name = self.config["fas"][fas_name]["groups"].get("prefix", "") + group["name"].lower()
+        name = (
+            self.config["fas"][fas_name]["groups"].get("prefix", "")
+            + group["name"].lower()
+        )
         # calculate the IRC channel (FAS has 2 fields, freeipa-fas has a single one )
         # if we have an irc channel defined. try to generate the irc:// uri
         # there are a handful of groups that have an IRC server defined (freenode), but
@@ -152,7 +154,9 @@ class Groups(ObjectManager):
             print(url, mailing_list, irc_string)
             return Status.FAILED
 
-    def find_group_conflicts(self, fas_groups: Dict[str, List[Dict]]) -> Dict[str, List[str]]:
+    def find_group_conflicts(
+        self, fas_groups: Dict[str, List[Dict]]
+    ) -> Dict[str, List[str]]:
         """Compare groups from different FAS instances and flag conflicts."""
         click.echo("Checking for conflicts between groups from different FAS instances")
 
@@ -164,7 +168,9 @@ class Groups(ObjectManager):
             for group_obj in group_objs:
                 groupnames_to_fas[group_obj["name"]].add(fas_name)
 
-        for group_name, fas_names in sorted(groupnames_to_fas.items(), key=lambda x: x[0]):
+        for group_name, fas_names in sorted(
+            groupnames_to_fas.items(), key=lambda x: x[0]
+        ):
             if len(fas_names) == 1:
                 continue
 

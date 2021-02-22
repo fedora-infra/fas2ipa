@@ -83,13 +83,17 @@ class FASWrapper:
 @click.command(context_settings={"help_option_names": ("-h", "--help")})
 @click.option("--pull/--no-pull", default=None, help="Whether to pull data from FAS.")
 @click.option("--push/--no-push", default=None, help="Whether to push data to IPA.")
-@click.option("--check/--no-check", default=None, help="Whether to check for conflicts.")
+@click.option(
+    "--check/--no-check", default=None, help="Whether to check for conflicts."
+)
 @click.option(
     "--dataset-file",
     type=click.Path(file_okay=True),
     help="Write data into/read data from this file.",
 )
-@click.option("--conflicts-file", default=None, help="Write found conflicts into this file.")
+@click.option(
+    "--conflicts-file", default=None, help="Write found conflicts into this file."
+)
 @click.option("--force-overwrite", is_flag=True, help="Overwrite file if it exists.")
 @click.option("--skip-groups", is_flag=True, help="Skip group creation.")
 @click.option(
@@ -247,7 +251,9 @@ def cli(
         report_conflicts(conflicts)
 
     if pull and dataset_file:
-        save_data(munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite)
+        save_data(
+            munch.unmunchify(dataset), dataset_file, force_overwrite=force_overwrite
+        )
 
     if push:
         if any(fas.get("agreement") for fas in config["fas"].values()):
@@ -255,7 +261,9 @@ def cli(
             agreements_mgr.push_to_ipa()
 
         if not skip_groups:
-            groups_stats = groups_mgr.push_to_ipa(dataset["groups"], conflicts["groups"])
+            groups_stats = groups_mgr.push_to_ipa(
+                dataset["groups"], conflicts["groups"]
+            )
             stats.update(groups_stats)
 
         # Disable and re-enable the memberof plugin to speed up import if and

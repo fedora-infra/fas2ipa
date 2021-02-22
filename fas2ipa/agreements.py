@@ -57,7 +57,9 @@ class Agreements(ObjectManager):
                 with open(agreement["description_file"], "r") as f:
                     agreement_description = f.read()
                 group_name = agreement["signer_group"]
-                self._create_agreement(agreement["name"], agreement_description, group_name)
+                self._create_agreement(
+                    agreement["name"], agreement_description, group_name
+                )
 
     def record_user_signatures(self, agreements_to_usernames: Dict[str, List[str]]):
         if self.config["skip_user_signature"]:
