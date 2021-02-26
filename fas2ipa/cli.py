@@ -15,7 +15,6 @@ from .users import Users
 from .groups import Groups
 from .agreements import Agreements
 from .utils import load_data, report_conflicts, save_data
-from .ipa_plugin import disable_memberof_plugin, enable_memberof_plugin
 
 
 class FASWrapper:
@@ -266,18 +265,9 @@ def cli(
             )
             stats.update(groups_stats)
 
-        # Disable and re-enable the memberof plugin to speed up import if and
-        # only if we're doing a full run
-        optimize_memberof = not users_start_at and not restrict_users
-        if optimize_memberof:
-            disable_memberof_plugin()
-
         users_stats = users_mgr.push_to_ipa(
             dataset["users"], users_start_at, restrict_users, conflicts["users"]
         )
         stats.update(users_stats)
-
-        if optimize_memberof:
-            enable_memberof_plugin()
 
     stats.print()
