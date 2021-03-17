@@ -55,7 +55,7 @@ class Groups(ObjectManager):
                 if g["name"] not in fas_conf["groups"].get("ignore", ())
             ]
 
-            name_max_length = max([len(g["name"]) for g in fas_groups])
+            name_max_length = max((len(g["name"]) for g in fas_groups))
 
             for group in progressbar.progressbar(fas_groups, redirect_stdout=True):
                 counter += 1
