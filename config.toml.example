@@ -31,6 +31,10 @@ email_domain = "fedoraproject.org"
 # Which groups should we ignore when creating and mapping?
 ignore = ["cla_fpca", "cla_done", "cla_fedora"]
 
+[fas.fedora.groups.umbrella]
+name = "fedora-contributor"
+description = "Fedora contributors"
+
 [[fas.fedora.agreement]]
 name = "Fedora Project Contributor Agreement"
 group_prerequisite = "cla_done"
