@@ -342,6 +342,8 @@ class Users(ObjectManager):
                 user_add_args = user_args.copy()
                 # If they haven't synced yet, they must reset their password:
                 user_add_args["random_pass"] = True
+                user_add_args["faslocale"] = user_add_args["faslocale"] or "en_US"
+                user_add_args["fastimezone"] = user_add_args["fastimezone"] or "UTC"
                 self.ipa.user_add(username, **user_add_args)
                 return Status.ADDED
             except python_freeipa.exceptions.FreeIPAError as e:
@@ -354,7 +356,14 @@ class Users(ObjectManager):
                     if user_args["full_name"] == "<first-name-unset> <last-name-unset>":
                         del user_args["full_name"]
 
-                    # Avoid overwriting already set fields
+                    # Avoid resetting already set fields
+                    if user_args["faslocale"] is None or user_args["fastimezone"] is None:
+                        ipa_user = self.user_show(username)
+                        if not user_args["faslocale"]:
+                            user_args["faslocale"] = ipa_user.get("faslocale") or "en_US"
+                        if not user_args["fastimezone"]:
+                            user_args["fastimezone"] = ipa_user.get("fastimezone") or "UTC"
+
                     user_args = {
                         k: v
                         for k, v in user_args.items()
