@@ -329,7 +329,7 @@ class Users(ObjectManager):
                 "home_directory": f"/home/fedora/{username}",
                 "disabled": status != "active",
                 "mail": email,
-                "ipasshpubkey": ssh_key.strip() if ssh_key else None,
+                "ipasshpubkey": [k.strip() for k in ssh_key.split("\n") if k.strip()] if ssh_key else None,
                 "fasircnick": ircnick.strip() if ircnick else None,
                 "faslocale": locale.strip() if locale else None,
                 "fastimezone": timezone.strip() if timezone else None,
