@@ -233,15 +233,15 @@ class Users(ObjectManager):
     def migrate_user(self, person):
         person_orig = person
         person = person.copy()
-        if self.config["skip_user_add"]:
+        if self.config["users"]["skip_disabled"] and person.get("status") != "active":
             return Status.SKIPPED
         if (
             self.config["users"]["skip_spam"]
             and person.get("status") == "spamcheck_denied"
         ):
             return Status.SKIPPED
-        if self.config["users"]["skip_disabled"] and person.get("status") != "active":
-            return Status.SKIPPED
+        if self.config["skip_user_add"]:
+            return Status.UNMODIFIED
 
         # Don't modify the original object, and remove all key/value pairs that should
         # be ignored
