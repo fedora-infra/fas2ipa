@@ -200,6 +200,8 @@ def cli(
         dataset = load_data(dataset_file)
     else:
         dataset = {}
+    dataset.setdefault("users", [])
+    dataset.setdefault("groups", [])
 
     fas_instances = {}
 
@@ -233,7 +235,7 @@ def cli(
             users_start_at=users_start_at, restrict_users=restrict_users
         )
 
-    conflicts = {"users": [], "groups": []}
+    conflicts = {}
     if check:
         if dataset_file:
             users_to_conflicts = users_mgr.find_user_conflicts(dataset["users"])
@@ -250,6 +252,8 @@ def cli(
         elif conflicts_file and os.path.exists(conflicts_file):
             conflicts = load_data(conflicts_file)
         report_conflicts(conflicts)
+    conflicts.setdefault("users", [])
+    conflicts.setdefault("groups", [])
 
     if pull and dataset_file:
         save_data(
