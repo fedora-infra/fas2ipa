@@ -74,9 +74,13 @@ def merge_dicts(d1: dict, d2: dict) -> dict:
     return d3
 
 
-def get_config():
+def get_config(config_file=None):
     config = deepcopy(DEFAULT_CONFIG)
-    config.update(toml.load([f for f in CONFIG_FILES if os.path.exists(f)]))
+    if config_file is not None:
+        config_files = [config_file]
+    else:
+        config_files = CONFIG_FILES[:]
+    config.update(toml.load([f for f in config_files if os.path.exists(f)]))
 
     # Copy defaults into FAS instance configurations
     defaults = config.copy()

@@ -113,6 +113,7 @@ class FASWrapper:
     multiple=True,
     help="Restrict users to supplied glob pattern(s).",
 )
+@click.option("--config", "config_file", default=None, help="Config file.")
 def cli(
     pull,
     push,
@@ -126,6 +127,7 @@ def cli(
     skip_user_signature,
     users_start_at,
     restrict_users,
+    config_file,
 ):
     _orig_check = check
 
@@ -168,7 +170,7 @@ def cli(
             message="Pulling without pushing or vice versa needs --dataset-file",
         )
 
-    config = get_config()
+    config = get_config(config_file)
     config["skip_groups"] = skip_groups
     config["skip_user_add"] = skip_user_add
     config["skip_user_membership"] = skip_user_membership
