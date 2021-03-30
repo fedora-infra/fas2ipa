@@ -233,7 +233,11 @@ class Users(ObjectManager):
     def migrate_user(self, person):
         person_orig = person
         person = person.copy()
-        if self.config["users"]["skip_disabled"] and person.get("status") != "active":
+        if (
+                self.config["users"]["skip_disabled"] 
+                and person.get("status") != "active" 
+                and person.get("status") != "bot"
+            ):
             return Status.SKIPPED
         if (
             self.config["users"]["skip_spam"]
