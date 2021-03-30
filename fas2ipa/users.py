@@ -236,8 +236,7 @@ class Users(ObjectManager):
         person = person.copy()
         if (
                 self.config["users"]["skip_disabled"] 
-                and person.get("status") != "active" 
-                and person.get("status") != "bot"
+                and person.get("status") not in ("active", "bot")
             ):
             return Status.SKIPPED
         if (
