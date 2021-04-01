@@ -386,7 +386,9 @@ class Users(ObjectManager):
                     # Update them instead
                     if user_args:
                         self.ipa.user_mod(username, **user_args)
-                    return Status.UPDATED
+                        return Status.UPDATED
+                    else:
+                        return Status.SKIPPED
                 else:
                     raise
 
