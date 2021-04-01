@@ -359,7 +359,7 @@ class Users(ObjectManager):
 
                     # Avoid resetting already set fields
                     if (
-                        not fas_conf.get("overwrite_data")
+                        not fas_conf.get("users", {}).get("overwrite_data")
                         or user_args["faslocale"] is None
                         or user_args["fastimezone"] is None
                     ):
