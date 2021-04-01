@@ -141,7 +141,7 @@ class Users(ObjectManager):
                 self.check_reauth(counter)
                 click.echo(username.ljust(max_length + 2), nl=False)
                 # Add user
-                status = self.migrate_user(person)
+                status = self.migrate_user(fas_name, person)
                 if status != Status.SKIPPED:
                     # Record membership
                     for _groupname, membership in person["group_roles"].items():
@@ -230,7 +230,8 @@ class Users(ObjectManager):
         else:
             return val
 
-    def migrate_user(self, person):
+    def migrate_user(self, fas_name, person):
+        fas_conf = self.config["fas"][fas_name]
         person_orig = person
         person = person.copy()
         if self.config["users"]["skip_disabled"] and person.get("status") != "active":
@@ -357,11 +358,23 @@ class Users(ObjectManager):
                         del user_args["full_name"]
 
                     # Avoid resetting already set fields
-                    if user_args["faslocale"] is None or user_args["fastimezone"] is None:
+                    if (
+                        not fas_conf.get("overwrite_data")
+                        or user_args["faslocale"] is None
+                        or user_args["fastimezone"] is None
+                    ):
                         ipa_user = self.user_show(username)
-                        if not user_args["faslocale"]:
+
+                        drop_fields = []
+                        for key in user_args:
+                            if ipa_user.get(key):
+                                drop_fields.append(key)
+                        for key in drop_fields:
+                            del user_args[key]
+
+                        if "faslocale" in user_args and not user_args["faslocale"]:
                             user_args["faslocale"] = ipa_user.get("faslocale") or "en_US"
-                        if not user_args["fastimezone"]:
+                        if "fastimezone" in user_args and not user_args["fastimezone"]:
                             user_args["fastimezone"] = ipa_user.get("fastimezone") or "UTC"
 
                     user_args = {
@@ -371,7 +384,8 @@ class Users(ObjectManager):
                     }
 
                     # Update them instead
-                    self.ipa.user_mod(username, **user_args)
+                    if user_args:
+                        self.ipa.user_mod(username, **user_args)
                     return Status.UPDATED
                 else:
                     raise
@@ -380,7 +394,7 @@ class Users(ObjectManager):
             self.ipa.login(
                 self.config["ipa"]["username"], self.config["ipa"]["password"]
             )
-            return self.migrate_user(person_orig)
+            return self.migrate_user(fas_name, person_orig)
         except python_freeipa.exceptions.FreeIPAError as e:
             if e.message != "no modifications to be performed":
                 print(e)
