@@ -48,7 +48,7 @@ signer_group = "signed_fpca"
 
 [fas.centos]
 url = "https://accounts.centos.org"
-email_domain = "centos.org"
+email_domain = "centosproject.org"
 # username = ""
 # password = ""
 
