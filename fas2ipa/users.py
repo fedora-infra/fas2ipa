@@ -365,6 +365,28 @@ class Users(ObjectManager):
                     ):
                         ipa_user = self.ipa.user_show(username)
 
+                        user_mail = user_args["mail"]
+                        if user_mail != ipa_user.get("mail"):
+                            skip_conflicts = set(self.config["users"].get("skip_conflicts", ()))
+                            other_email_domains = {
+                                chk_fas_conf["email_domain"]
+                                for chk_fas_name, chk_fas_conf in self.config["fas"].items()
+                                if chk_fas_name != fas_name and "email_domain" in chk_fas_conf
+                            }
+                            mailbox, domain = user_mail.rsplit("@", 1)
+                            if mailbox == username:
+                                if (
+                                    domain == fas_conf["email_domain"]
+                                    and "circular_email" not in skip_conflicts
+                                    or domain in other_email_domains
+                                    and "email_pointing_to_other_fas" not in skip_conflicts
+                                ):
+                                    return Status.SKIPPED
+                                else:
+                                    del user_args["mail"]
+                            else:
+                                return Status.SKIPPED
+
                         drop_fields = []
                         for key in user_args:
                             if ipa_user.get(key):
