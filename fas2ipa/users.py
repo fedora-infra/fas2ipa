@@ -363,7 +363,7 @@ class Users(ObjectManager):
                         or user_args["faslocale"] is None
                         or user_args["fastimezone"] is None
                     ):
-                        ipa_user = self.user_show(username)
+                        ipa_user = self.ipa.user_show(username)
 
                         drop_fields = []
                         for key in user_args:
