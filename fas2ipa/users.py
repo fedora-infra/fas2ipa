@@ -410,7 +410,7 @@ class Users(ObjectManager):
                         self.ipa.user_mod(username, **user_args)
                         return Status.UPDATED
                     else:
-                        return Status.SKIPPED
+                        return Status.UNMODIFIED
                 else:
                     raise
 
