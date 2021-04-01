@@ -27,6 +27,10 @@ email_domain = "fedoraproject.org"
 # username = ""
 # password = ""
 
+[fas.fedora.users]
+# whether to overwrite fields when a user exists
+# overwrite_data = true
+
 [fas.fedora.groups]
 # Which groups should we ignore when creating and mapping?
 ignore = ["cla_fpca", "cla_done", "cla_fedora"]
