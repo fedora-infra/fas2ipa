@@ -369,7 +369,7 @@ class Users(ObjectManager):
                         ipa_user = self.ipa.user_show(username)
 
                         user_mail = user_args["mail"]
-                        if user_mail != ipa_user.get("mail"):
+                        if user_mail != ipa_user.get("mail")[0]:
                             skip_conflicts = set(self.config["users"].get("skip_conflicts", ()))
                             other_email_domains = {
                                 chk_fas_conf["email_domain"]
@@ -398,9 +398,15 @@ class Users(ObjectManager):
                             del user_args[key]
 
                         if "faslocale" in user_args and not user_args["faslocale"]:
-                            user_args["faslocale"] = ipa_user.get("faslocale") or "en_US"
+                            try:
+                                user_args["faslocale"] = ipa_user.get("faslocale", [])[0]
+                            except IndexError:
+                                user_args["faslocale"] = "en_US"
                         if "fastimezone" in user_args and not user_args["fastimezone"]:
-                            user_args["fastimezone"] = ipa_user.get("fastimezone") or "UTC"
+                            try:
+                                user_args["fastimezone"] = ipa_user.get("fastimezone", [])[0]
+                            except IndexError:
+                                user_args["fastimezone"] = "UTC"
 
                     user_args = {
                         k: v
